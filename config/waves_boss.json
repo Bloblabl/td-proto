@@ -1,0 +1,13 @@
+{
+  "defined": [
+    { "wave": 1, "groups": [ { "type": "boss", "count": 1, "interval": 1.0 } ] },
+    { "wave": 2, "groups": [ { "type": "boss", "count": 1, "interval": 1.0 }, { "type": "normal", "count": 6, "interval": 1.0 } ] }
+  ],
+  "procedural": {
+    "hpBudgetBase": 1200,
+    "weights": { "tank": 3, "normal": 2, "swarm": 2 },
+    "spawnInterval": { "normal": 0.8, "tank": 2.0, "swarm": 0.25 },
+    "bossEvery": 1,
+    "bossEscort": { "type": "tank", "count": 2, "interval": 2.5 }
+  }
+}

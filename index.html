@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>TD-Proto — тест механик</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #1b1d22; color: #e8e8e8;
+      font: 14px/1.4 system-ui, sans-serif; overflow: hidden;
+      -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+    #app { display: flex; flex-direction: column; height: 100%; max-width: 640px; margin: 0 auto; }
+    #topbar, #bottombar { flex: 0 0 auto; padding: 6px 8px; background: #24262c; }
+    #topbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+    #game { flex: 1 1 auto; min-height: 0; position: relative; }
+    #game canvas { position: absolute; inset: 0; }
+    .stat b { color: #ffd45e; }
+    button { background: #3a3f4a; color: #e8e8e8; border: 1px solid #555; border-radius: 6px;
+      padding: 8px 10px; font-size: 14px; min-height: 44px; min-width: 44px; cursor: pointer; }
+    button:disabled { opacity: .4; }
+    button.active { background: #2e6b3a; border-color: #4caf50; }
+    #bottombar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    #summonBtn { background: #2d5a8c; font-weight: 700; flex: 1 1 auto; }
+    .panel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: #24262cf2;
+      border: 1px solid #555; border-radius: 8px; padding: 10px; display: none; z-index: 5; }
+    .panel.open { display: block; }
+    .panel .row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .panel .row .nm { flex: 1; }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+    #overlay, .modal { position: absolute; inset: 0; background: #000a; display: none;
+      align-items: center; justify-content: center; z-index: 10; }
+    #overlay.open, .modal.open { display: flex; }
+    #overlay .card, .modal .card { background: #24262c; border: 1px solid #666; border-radius: 10px;
+      padding: 18px; width: min(92%, 420px); max-height: 90%; overflow: auto; }
+    #overlay h2, .modal h2 { margin-bottom: 8px; }
+    #overlay table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    #overlay td { padding: 2px 4px; border-bottom: 1px solid #333; }
+    #draftCards { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    #draftCards button { min-height: 56px; font-size: 15px; border-width: 2px; border-color: #f97316; }
+    #deckTypes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    #deckTypes button { flex: 1 1 30%; min-height: 52px; border-width: 2px; font-size: 13px; }
+    #deckTypes button.picked { background: #2e6b3a; }
+    #debugbar { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 8px; background: #1f2126; align-items: center; }
+    #debugbar button { min-height: 32px; padding: 4px 8px; font-size: 12px; }
+    #dpsOverlay { position: absolute; top: 8px; left: 8px; z-index: 4; display: none;
+      background: #1b1d22cc; border: 1px solid #444; border-radius: 6px; padding: 6px 10px;
+      font: 12px/1.5 ui-monospace, monospace; white-space: pre; pointer-events: none; }
+    #dpsOverlay.open { display: block; }
+    .muted { color: #999; font-size: 12px; }
+	#upgrow { display: flex; gap: 4px; padding: 4px 8px; background: #24262c; }
+    #upgrow button { flex: 1; min-width: 0; min-height: 40px; padding: 3px 2px;
+      font-size: 11px; line-height: 1.25; border-width: 2px; }
+    #consrow, #consrow2 { display: flex; gap: 4px; padding: 4px 8px 0; background: #24262c; }
+    #consrow button, #consrow2 button { flex: 1; min-width: 0; min-height: 44px; padding: 3px 2px;
+      font-size: 12px; line-height: 1.25; }
+    #consrow2 { padding-bottom: 4px; }
+    button.armed { background: #7a4a1d; border-color: #f97316; }
+    #selectorTypes { flex-wrap: wrap; }
+    #selectorTypes button { flex: 1 1 30%; min-height: 44px; border-width: 2px; font-size: 12px; }
+  </style>
+  <script type="module" crossorigin src="./assets/index-BSgk95pM.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div id="topbar">
+      <span class="stat">Волна <b id="waveN">0</b></span>
+      <span class="stat">❤️ <b id="livesN">3</b></span>
+      <span class="stat">Мана <b id="manaN">100</b></span>
+      <span class="stat" id="phaseLbl"></span>
+      <span class="stat" id="modeLbl"></span>
+      <span class="stat muted" id="seedLbl"></span>
+      <button id="helpBtn" title="Правила">?</button>
+    </div>
+    <div id="game">
+      <div id="dpsOverlay"></div>
+    </div>
+    <div id="debugbar">
+      <button id="spd1" class="active">×1</button>
+      <button id="spd2">×2</button>
+      <button id="spd4">×4</button>
+      <button id="pauseBtn">⏸</button>
+      <span class="muted" id="fpsLbl">60 fps</span>
+      <span style="flex:1"></span>
+      <button id="dbgMana">+1000 маны</button>
+      <button id="dbgCons">+расходники</button>
+      <button id="dbgKill">Убить волну</button>
+      <button id="dbgWave">Волна…</button>
+      <button id="dbgSeed">Сид…</button>
+      <button id="dbgGod">God: off</button>
+      <button id="dbgDps">DPS</button>
+      <button id="dbgTelem">Телеметрия</button>
+      <button id="dbgDaily">Daily</button>
+      <button id="dbgBoss">Boss Rush</button>
+    </div>
+	<div id="upgrow"></div>
+    <div id="consrow">
+      <button id="obBarricade">🧱 Баррикада</button>
+      <button id="obSpikes">▲ Шипы</button>
+      <button id="obSlowzone">❄ Слоу</button>
+      <button id="selectorBtn">🎯 Селектор</button>
+    </div>
+    <div id="consrow2">
+      <button id="bMeteor">☄️ Метеор</button>
+      <button id="bOverdrive">🔥 Перегрев</button>
+      <button id="bManasurge">💧 Прилив</button>
+    </div>
+    <div id="bottombar">
+      <button id="summonBtn">Призыв (10)</button>
+      <button id="nextWaveBtn">Волна ▶ +бонус</button>
+    </div>
+    <div id="selectorPanel" class="panel">
+      <b>Селектор: тип следующего мерджа</b>
+      <div class="row" id="selectorTypes"></div>
+      <button onclick="this.parentElement.classList.remove('open')">Закрыть</button>
+    </div>
+    <div id="helpPanel" class="panel">
+      <b>Правила прототипа</b>
+      <p>«Призыв» ставит случайный юнит ранга 1 на свободную клетку (цена растёт).
+      Перетащите юнит на юнит того же типа и ранга — мердж: ранг +1, тип случайный.
+      Смердженный юнит атакует в ×1.6 быстрее, но суммарно слабее двух исходных — думайте, когда мерджить.
+      Монстр, прошедший полный круг, снимает 1 жизнь и исчезает. «Апгрейды» усиливают все юниты типа за ману.
+      «Волна ▶» вызывает следующую волну раньше и даёт бонус маны.</p>
+      <p><b>Заграждения</b> (расходники): нажмите кнопку и тапните тайл трека.
+      Баррикада блокирует монстров, пока её не разобьют; Шипы бьют всех на тайле 10 секунд;
+      Слоу-зона замедляет на 3 тайлах (босс — слабее). Комбо: слоу-зона собирает толпу под Залп.</p>
+      <p><b>Бусты</b> с кулдауном: Метеор — AoE-удар по выбранной точке (берегите под босса!),
+      Перегрев — +100% скорости атаки на 8 с, Прилив — +150 маны.
+      <b>Селектор</b> задаёт тип юнита от следующего мерджа (расходник).</p>
+      <button onclick="this.parentElement.classList.remove('open')">Закрыть</button>
+    </div>
+    <div id="overlay">
+      <div class="card">
+        <h2>Забег окончен</h2>
+        <div id="resultBody"></div>
+        <div style="display:flex; gap:8px; margin-top:10px">
+          <button id="restartSameBtn">Ещё раз (тот же сид)</button>
+          <button id="restartNewBtn">Новый сид</button>
+        </div>
+      </div>
+    </div>
+    <div id="draftOverlay" class="modal">
+      <div class="card">
+        <h2>Драфт: выберите апгрейд</h2>
+        <p class="muted">Действует до конца забега</p>
+        <div id="draftCards"></div>
+      </div>
+    </div>
+    <div id="deckOverlay" class="modal">
+      <div class="card">
+        <h2>Колода: выберите 5 из 7</h2>
+        <div id="deckTypes"></div>
+        <button id="deckStartBtn" disabled style="width:100%; margin-top:10px">Выбрано 0 / 5</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "defined": [
+    { "wave": 1,  "groups": [ { "type": "normal", "count": 6,  "interval": 1.2 } ] },
+    { "wave": 2,  "groups": [ { "type": "normal", "count": 8,  "interval": 1.0 } ] },
+    { "wave": 3,  "groups": [ { "type": "fast",   "count": 6,  "interval": 0.7 }, { "type": "normal", "count": 4, "interval": 1.0 } ] },
+    { "wave": 4,  "groups": [ { "type": "normal", "count": 10, "interval": 0.9 }, { "type": "swarm",  "count": 8, "interval": 0.3 } ] },
+    { "wave": 5,  "groups": [ { "type": "tank",   "count": 2,  "interval": 2.5 }, { "type": "normal", "count": 8, "interval": 0.9 } ] },
+    { "wave": 6,  "groups": [ { "type": "fast",   "count": 10, "interval": 0.5 } ] },
+    { "wave": 7,  "groups": [ { "type": "swarm",  "count": 16, "interval": 0.25 }, { "type": "tank", "count": 2, "interval": 3.0 } ] },
+    { "wave": 8,  "groups": [ { "type": "normal", "count": 12, "interval": 0.8 }, { "type": "fast", "count": 6, "interval": 0.6 } ] },
+    { "wave": 9,  "groups": [ { "type": "tank",   "count": 4,  "interval": 2.0 }, { "type": "swarm", "count": 12, "interval": 0.3 } ] },
+    { "wave": 10, "groups": [ { "type": "boss",   "count": 1,  "interval": 1.0 }, { "type": "normal", "count": 10, "interval": 1.0 } ] },
+    { "wave": 11, "groups": [ { "type": "normal", "count": 14, "interval": 0.7 } ] },
+    { "wave": 12, "groups": [ { "type": "fast",   "count": 12, "interval": 0.45 }, { "type": "swarm", "count": 10, "interval": 0.3 } ] },
+    { "wave": 13, "groups": [ { "type": "tank",   "count": 5,  "interval": 1.8 }, { "type": "fast", "count": 8, "interval": 0.5 } ] },
+    { "wave": 14, "groups": [ { "type": "normal", "count": 16, "interval": 0.6 }, { "type": "tank", "count": 3, "interval": 2.2 } ] },
+    { "wave": 15, "groups": [ { "type": "swarm",  "count": 24, "interval": 0.2 }, { "type": "fast", "count": 10, "interval": 0.5 } ] }
+  ],
+  "procedural": {
+    "hpBudgetBase": 900,
+    "weights": { "normal": 4, "fast": 3, "tank": 2, "swarm": 3 },
+    "spawnInterval": { "normal": 0.8, "fast": 0.5, "tank": 2.0, "swarm": 0.25 },
+    "bossEvery": 10,
+    "bossEscort": { "type": "normal", "count": 10, "interval": 1.0 }
+  }
+}
