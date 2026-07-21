@@ -2,10 +2,11 @@ import Phaser from 'phaser';
 import { Sim, TILE } from '../core/sim';
 import type { Monster, Obstacle, Unit } from '../core/types';
 import type { Controls } from '../ui/controls';
+import { shapeSpec } from './shapes';
 
 interface UnitView {
   container: Phaser.GameObjects.Container;
-  rect: Phaser.GameObjects.Rectangle;
+  shape: Phaser.GameObjects.Shape;
   label: Phaser.GameObjects.Text;
   typeId: string;
   rank: number;
@@ -157,11 +158,18 @@ export class GameScene extends Phaser.Scene {
         v = this.createUnitView(u);
         this.unitViews.set(u.id, v);
       }
-      if (force || v.typeId !== u.typeId || v.rank !== u.rank) {
+      if (v.typeId !== u.typeId) {
+        // тип сменился (мердж) — силуэт другой, пересобираем его
+        v.shape.destroy();
         const t = this.sim.unitType(u.typeId);
-        v.rect.setFillStyle(Phaser.Display.Color.HexStringToColor(t.color).color);
-        v.label.setText(String(u.rank));
+        v.shape = shapeSpec(u.typeId).make(
+          this, TILE - 14, Phaser.Display.Color.HexStringToColor(t.color).color
+        ).setStrokeStyle(2, 0xffffff, 0.55);
+        v.container.addAt(v.shape, 0);
         v.typeId = u.typeId;
+      }
+      if (force || v.rank !== u.rank) {
+        v.label.setText(String(u.rank));
         v.rank = u.rank;
         const p = this.sim.cellPx(u.cell);
         v.container.setPosition(p.x, p.y);
@@ -182,16 +190,20 @@ export class GameScene extends Phaser.Scene {
   private createUnitView(u: Unit): UnitView {
     const t = this.sim.unitType(u.typeId);
     const p = this.sim.cellPx(u.cell);
-    const rect = this.add.rectangle(0, 0, TILE - 10, TILE - 10,
-      Phaser.Display.Color.HexStringToColor(t.color).color).setStrokeStyle(2, 0xffffff, 0.6);
-    const label = this.add.text(0, 0, String(u.rank), {
-      fontFamily: 'system-ui', fontSize: '20px', fontStyle: 'bold', color: '#1b1d22'
+    const shape = shapeSpec(u.typeId).make(
+      this, TILE - 14, Phaser.Display.Color.HexStringToColor(t.color).color
+    ).setStrokeStyle(2, 0xffffff, 0.55);
+    // ранг — бейджем в углу: поверх треугольника или звезды цифра по центру не читается
+    const badgeX = TILE / 2 - 12, badgeY = TILE / 2 - 12;
+    const badge = this.add.circle(badgeX, badgeY, 10, 0x14161a).setStrokeStyle(1, 0xffffff, 0.5);
+    const label = this.add.text(badgeX, badgeY, String(u.rank), {
+      fontFamily: 'system-ui', fontSize: '14px', fontStyle: 'bold', color: '#ffffff'
     }).setOrigin(0.5);
-    const container = this.add.container(p.x, p.y, [rect, label]).setDepth(1);
+    const container = this.add.container(p.x, p.y, [shape, badge, label]).setDepth(1);
     container.setSize(TILE - 10, TILE - 10);
     container.setInteractive({ draggable: true, useHandCursor: true });
     container.setData('unitId', u.id);
-    return { container, rect, label, typeId: u.typeId, rank: u.rank };
+    return { container, shape, label, typeId: u.typeId, rank: u.rank };
   }
 
   private syncMonsters(): void {
@@ -241,8 +253,14 @@ export class GameScene extends Phaser.Scene {
         ? { x: e.fromX, y: e.fromY }
         : this.sim.cellPx(e.fromCell);
       const color = Phaser.Display.Color.HexStringToColor(e.color).color;
-      this.fx.lineStyle(2, color, 1 - age / 0.12);
+      const fade = 1 - age / 0.12;
+      // крит: толще, ярче и со вспышкой в точке попадания — механика должна читаться
+      this.fx.lineStyle(e.crit ? 5 : 2, e.crit ? 0xffd45e : color, fade);
       this.fx.lineBetween(from.x, from.y, e.x, e.y);
+      if (e.crit) {
+        this.fx.fillStyle(0xffd45e, fade * 0.5);
+        this.fx.fillCircle(e.x, e.y, 14 * (0.5 + age * 4));
+      }
       if (e.aoeRadiusPx) {
         this.fx.strokeCircle(e.x, e.y, e.aoeRadiusPx * (0.6 + age * 3));
       }
@@ -261,6 +279,20 @@ export class GameScene extends Phaser.Scene {
       this.fx.strokeCircle(e.x, e.y, r);
     }
     this.sim.blastEvents = this.sim.blastEvents.filter(e => now - e.t <= 1);
+
+    // подсказка мерджа: пока тащим юнит, обводим все, с которыми он сольётся
+    if (this.dragSourceId !== null) {
+      const src = this.sim.units.find(u => u.id === this.dragSourceId);
+      if (src && src.rank < this.sim.cfg.maxRank) {
+        const pulse = 0.55 + 0.45 * Math.sin(now * 8);
+        for (const u of this.sim.units) {
+          if (u.id === src.id || u.typeId !== src.typeId || u.rank !== src.rank) continue;
+          const p = this.sim.cellPx(u.cell);
+          this.fx.lineStyle(3, 0x4caf50, pulse);
+          this.fx.strokeRect(p.x - TILE / 2 + 3, p.y - TILE / 2 + 3, TILE - 6, TILE - 6);
+        }
+      }
+    }
 
     // подсказки взведённого действия
     const armed = this.controls.armed;

@@ -1,6 +1,8 @@
+import { runReward } from '../core/meta';
 import { Sim } from '../core/sim';
-import type { BoostId, ObstacleKind } from '../core/types';
+import type { BoostId, MetaState, ObstacleKind } from '../core/types';
 import type { Controls } from './controls';
+import { saveMeta } from './storage';
 
 function el<T extends HTMLElement>(id: string): T {
 	const e = document.getElementById(id);
@@ -24,10 +26,12 @@ export class Hud {
 	private obButtons = new Map<ObstacleKind, HTMLButtonElement>();
 	private boostButtons = new Map<BoostId, HTMLButtonElement>();
 
-	constructor(private sim: Sim, private controls: Controls) {
+	constructor(private sim: Sim, private controls: Controls, private meta: MetaState) {
 		el('seedLbl').textContent = `сид ${sim.seed}`;
 		el('modeLbl').textContent =
 			sim.mode === 'daily' ? '📅 Испытание дня' : sim.mode === 'boss' ? '💀 Boss Rush' : '';
+		el('critLbl').innerHTML =
+			`⚡ <b>${Math.round(sim.critChance * 100)}%</b> ×${sim.critMult.toFixed(2)}`;
 
 		el('summonBtn').onclick = () => sim.summon();
 		el('nextWaveBtn').onclick = () => sim.callNextWave();
@@ -103,6 +107,9 @@ export class Hud {
 		};
 		el('restartSameBtn').onclick = () => restart(sim.seed);
 		el('restartNewBtn').onclick = () => restart();
+		el('toMenuBtn').onclick = () => {
+			location.href = location.origin + location.pathname; // без параметров → главное меню
+		};
 	}
 
 	/** Вызывается каждый кадр. */
@@ -250,6 +257,11 @@ export class Hud {
 	private showResults(): void {
 		this.overlayShown = true;
 		const s = this.sim.stats;
+		// начисление валюты — единственное место, где забег влияет на мету
+		const bossEvery = this.sim.waves.procedural.bossEvery;
+		s.currencyEarned = runReward(this.sim.cfg, s, bossEvery);
+		this.meta.currency += s.currencyEarned;
+		saveMeta(this.meta);
 		const dmgRows = Object.entries(s.damageByType)
 			.sort((a, b) => b[1] - a[1])
 			.map(([id, d]) => {
@@ -266,8 +278,11 @@ export class Hud {
 		const overkill = Object.values(s.overkillByType).reduce((a, b) => a + b, 0);
 		const genShare = s.manaEarned > 0 ? Math.round(100 * s.manaFromGen / s.manaEarned) : 0;
 		const modeName = s.mode === 'daily' ? 'Испытание дня' : s.mode === 'boss' ? 'Boss Rush' : 'Аркада';
+		const critRate = s.totalHits > 0 ? Math.round(100 * s.critHits / s.totalHits) : 0;
 		el('resultBody').innerHTML =
 			`<p>${modeName} · Волна <b>${s.wavesReached}</b> · ${Math.round(s.timeSec)} с · убийств: ${s.kills} · мерджей: ${s.merges}</p>` +
+			`<p class="reward">◈ +${s.currencyEarned} ядер <span class="muted">(всего ${this.meta.currency})</span></p>` +
+			`<p class="muted">критов ${critRate}% · добавили урона ${Math.round(s.critBonusDamage).toLocaleString('ru')}</p>` +
 			`<p class="muted">колода: ${deck}</p>` +
 			`<p class="muted">мана: заработано ${Math.round(s.manaEarned)}, призыв ${Math.round(s.manaSpentSummon)}, ` +
 			`апгрейды ${Math.round(s.manaSpentUpgrade)} · от Генератора ${genShare}% · overkill ${Math.round(overkill)}</p>` +
