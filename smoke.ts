@@ -70,8 +70,25 @@ console.log('seed 12345 #2:', r2);
 console.log('seed 99999   :', r3);
 console.log('seed 12345, колода Яд+Разряд:', r4);
 console.log('boss rush (сид-дата):', r5);
-console.log('determinism:', JSON.stringify(r1) === JSON.stringify(r2) ? 'OK' : 'FAIL');
-console.log('новые типы наносят урон:',
-  (r4.dmg?.includes('poison') && r4.dmg?.includes('arc')) ? 'OK' : 'FAIL');
-console.log('телеметрия волн:',
-  (r1.waveStats > 0 && r1.overkill > 0 && r1.genShare !== '0%') ? 'OK' : 'FAIL');
+
+// проверки: ненулевой код выхода при провале — smoke работает как гейт в CI
+let failed = 0;
+function check(name: string, ok: boolean): void {
+  console.log(`${name}: ${ok ? 'OK' : 'FAIL'}`);
+  if (!ok) failed++;
+}
+
+check('детерминизм по сиду', JSON.stringify(r1) === JSON.stringify(r2));
+check('разные сиды дают разные забеги', JSON.stringify(r1) !== JSON.stringify(r3));
+check('новые типы наносят урон',
+  Boolean(r4.dmg?.includes('poison') && r4.dmg?.includes('arc')));
+check('телеметрия волн', r1.waveStats > 0 && r1.overkill > 0 && r1.genShare !== '0%');
+check('заграждения покупают время', parseFloat(r1.bought) > 0);
+check('boss rush играется', r5.wave > 1);
+check('забеги содержательной длины', r1.wave >= 10 && r1.merges > 0);
+
+if (failed > 0) {
+  console.error(`\n${failed} проверок провалено`);
+  process.exit(1);
+}
+console.log('\nвсе проверки пройдены');
