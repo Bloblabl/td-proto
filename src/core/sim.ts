@@ -1,7 +1,8 @@
+import { critStats, emptyMeta, towerDamageBonus } from './meta';
 import { Rng } from './rng';
 import { Track } from './track';
 import type {
-  AttackEvent, BalanceCfg, BlastEvent, BoostCfg, BoostId, BoostState, DraftCard, Monster,
+  AttackEvent, BalanceCfg, BlastEvent, BoostCfg, BoostId, BoostState, DraftCard, MetaState, Monster,
   MonsterTypeCfg, Obstacle, ObstacleKind, RunStats, Unit, UnitTypeCfg, WaveGroup, WaveStats, WavesCfg
 } from './types';
 
@@ -73,14 +74,24 @@ export class Sim {
   private dpsBuckets = new Map<string, number[]>();
   private dpsLastSec = 0;
 
+  /** Мета-прогрессия игрока: уровни башен и общий крит (readonly в бою). */
+  readonly meta: MetaState;
+  readonly critChance: number;
+  readonly critMult: number;
+
   constructor(
     readonly cfg: BalanceCfg,
     readonly waves: WavesCfg,
     readonly seed: number,
     deckIds?: string[],
-    readonly mode: string = 'arcade'
+    readonly mode: string = 'arcade',
+    meta?: MetaState
   ) {
     this.rng = new Rng(seed);
+    this.meta = meta ?? emptyMeta(cfg);
+    const crit = critStats(cfg, this.meta);
+    this.critChance = crit.chance;
+    this.critMult = crit.mult;
     this.track = new Track(cfg.track.cols, cfg.track.rows);
     this.mana = cfg.startMana;
     this.lives = cfg.lives;
@@ -102,6 +113,7 @@ export class Sim {
       seed, mode, wavesReached: 0, timeSec: 0, kills: 0, merges: 0, summons: 0,
       manaEarned: 0, manaSpentSummon: 0, manaSpentUpgrade: 0, manaFromGen: 0,
       damageByType: {}, overkillByType: {}, waves: [], boostsUsed: {},
+      critHits: 0, totalHits: 0, critBonusDamage: 0, currencyEarned: 0,
       timeBought: { barricade: 0, slowzone: 0 },
       obstaclesPlaced: {}, selectorsUsed: 0, draftPicks: []
     };
@@ -508,7 +520,15 @@ export class Sim {
       }
       const target = this.acquire(t.targeting);
       if (!target) { u.cooldown = 0; continue; } // ждём цель, не копим отрицательный кулдаун
-      const dmg = this.effDamage(u, t);
+      // крит роллится один раз на атаку: критует весь залп, а не отдельные цели
+      const baseDmg = this.effDamage(u, t);
+      const isCrit = this.rng.next() < this.critChance;
+      const dmg = isCrit ? baseDmg * this.critMult : baseDmg;
+      this.stats.totalHits++;
+      if (isCrit) {
+        this.stats.critHits++;
+        this.stats.critBonusDamage += dmg - baseDmg; // номинальный бонус, без учёта overkill
+      }
       const pos = this.monsterPx(target);
       if (t.aoeRadius) {
         const rPx = t.aoeRadius * TILE;
@@ -532,7 +552,8 @@ export class Sim {
       }
       this.attackEvents.push({
         t: this.time, fromCell: u.cell, x: pos.x, y: pos.y, color: t.color,
-        aoeRadiusPx: t.aoeRadius ? t.aoeRadius * TILE : undefined
+        aoeRadiusPx: t.aoeRadius ? t.aoeRadius * TILE : undefined,
+        crit: isCrit
       });
       // разряд: прыжки по ближайшим целям с затуханием урона
       if (t.chainCount && t.chainRadius) {
@@ -654,11 +675,12 @@ export class Sim {
     return period;
   }
 
-  /** Множитель урона/эффекта: in-match уровень типа + карточки драфта. */
+  /** Множитель урона/эффекта: in-match уровень типа + драфт + мета-уровень башни. */
   private effMult(u: Unit): number {
     const level = this.typeLevels[u.typeId] ?? 1;
     return (1 + this.cfg.typeUpgrade.multPerLevel * (level - 1))
-      * (1 + (this.typeDamageBonus[u.typeId] ?? 0));
+      * (1 + (this.typeDamageBonus[u.typeId] ?? 0))
+      * (1 + towerDamageBonus(this.cfg, this.meta, u.typeId));
   }
 
   private effDamage(u: Unit, t: UnitTypeCfg): number {
@@ -694,9 +716,14 @@ export class Sim {
     this.waveAcc.kills++;
   }
 
+  /**
+   * Гладкий рост HP. Раньше был множитель-ступенька каждые 10 волн (×1.5),
+   * из-за которого на волнах 30/40 сложность прыгала в полтора раза за один шаг —
+   * игрок упирался в стену. Теперь та же суммарная кривая, но непрерывная.
+   */
   private waveHpMult(wave: number): number {
-    const { linear, stepMult, stepEvery } = this.cfg.waveHp;
-    return (1 + linear * wave) * Math.pow(stepMult, Math.floor(wave / stepEvery));
+    const { linear, growth } = this.cfg.waveHp;
+    return (1 + linear * wave) * Math.pow(growth, wave);
   }
 
   private startNextWave(): void {

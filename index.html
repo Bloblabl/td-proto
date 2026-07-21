@@ -22,8 +22,9 @@
     button.active { background: #2e6b3a; border-color: #4caf50; }
     #bottombar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     #summonBtn { background: #2d5a8c; font-weight: 700; flex: 1 1 auto; }
-    .panel { position: absolute; left: 8px; right: 8px; bottom: 8px; background: #24262cf2;
-      border: 1px solid #555; border-radius: 8px; padding: 10px; display: none; z-index: 5; }
+    .panel { position: fixed; left: 8px; right: 8px; bottom: 8px; background: #24262cf2;
+      border: 1px solid #555; border-radius: 8px; padding: 10px; display: none; z-index: 40;
+      max-width: 620px; margin: 0 auto; max-height: 80vh; overflow-y: auto; }
     .panel.open { display: block; }
     .panel .row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
     .panel .row .nm { flex: 1; }
@@ -47,7 +48,39 @@
       background: #1b1d22cc; border: 1px solid #444; border-radius: 6px; padding: 6px 10px;
       font: 12px/1.5 ui-monospace, monospace; white-space: pre; pointer-events: none; }
     #dpsOverlay.open { display: block; }
+
+    /* --- главное меню и экран прокачки --- */
+    .screen { position: fixed; inset: 0; z-index: 30; background: #16181d;
+      display: none; align-items: center; justify-content: center; padding: 16px;
+      overflow-y: auto; }
+    .screen.open { display: flex; }
+    .menu-card { width: min(100%, 380px); display: flex; flex-direction: column; gap: 10px;
+      margin: auto; }
+    .menu-card.wide { width: min(100%, 460px); }
+    .logo { font-size: 40px; letter-spacing: 2px; text-align: center; font-weight: 800; }
+    .logo span { color: #ffd45e; }
+    .tagline { text-align: center; margin-top: -6px; }
+    .wallet { text-align: center; font-size: 17px; padding: 8px; background: #24262c;
+      border: 1px solid #3a3f4a; border-radius: 8px; }
+    .wallet b { color: #ffd45e; }
+    .menu-card button { min-height: 52px; font-size: 16px; }
+    .menu-card button.primary { background: #2d5a8c; border-color: #4a86c8; font-weight: 700; }
+    .menu-card button.ghost { background: transparent; min-height: 40px; font-size: 14px; }
+    .menu-row { display: flex; gap: 8px; }
+    .menu-row button { flex: 1; }
+    .crit-summary { text-align: center; color: #ffd45e; font-size: 15px; }
+    .small { font-size: 12px; line-height: 1.4; }
+    #metaList { display: flex; flex-direction: column; gap: 6px; }
+    .meta-row { display: flex; align-items: center; gap: 10px; background: #24262c;
+      border: 1px solid #3a3f4a; border-radius: 8px; padding: 8px 10px; }
+    .meta-row svg { flex: none; }
+    .meta-row .info { flex: 1; min-width: 0; }
+    .meta-row .nm { font-weight: 600; }
+    .meta-row .sub { font-size: 12px; color: #999; }
+    .meta-row button { min-height: 40px; min-width: 84px; font-size: 13px; }
+    .meta-row .lv { font-variant-numeric: tabular-nums; color: #ffd45e; font-weight: 700; }
     .muted { color: #999; font-size: 12px; }
+    .reward { color: #ffd45e; font-size: 17px; font-weight: 700; margin: 6px 0; }
 	#upgrow { display: flex; gap: 4px; padding: 4px 8px; background: #24262c; }
     #upgrow button { flex: 1; min-width: 0; min-height: 40px; padding: 3px 2px;
       font-size: 11px; line-height: 1.25; border-width: 2px; }
@@ -61,11 +94,40 @@
   </style>
 </head>
 <body>
+  <div id="menuScreen" class="screen open">
+    <div class="menu-card">
+      <h1 class="logo">TD<span>·</span>Proto</h1>
+      <p class="muted tagline">прототип merge tower defense</p>
+      <div class="wallet">◈ <b id="menuCurrency">0</b> <span class="muted">ядер</span></div>
+      <button id="playArcade" class="primary">Аркада</button>
+      <button id="playDaily">📅 Испытание дня</button>
+      <button id="playBoss">💀 Boss Rush</button>
+      <button id="openMeta">⚙ Прокачка башен</button>
+      <button id="menuHelp" class="ghost">? Правила</button>
+    </div>
+  </div>
+
+  <div id="metaScreen" class="screen">
+    <div class="menu-card wide">
+      <h2>Прокачка башен</h2>
+      <div class="wallet">◈ <b id="metaCurrency">0</b> <span class="muted">ядер</span></div>
+      <p class="crit-summary" id="critSummary"></p>
+      <p class="muted small">Уровень любой башни поднимает общий крит — качать выгодно всё,
+        но урон растёт только у прокачанного типа.</p>
+      <div id="metaList"></div>
+      <div class="menu-row">
+        <button id="metaBack">← В меню</button>
+        <button id="metaReset" class="ghost">Сбросить прогресс</button>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
     <div id="topbar">
       <span class="stat">Волна <b id="waveN">0</b></span>
       <span class="stat">❤️ <b id="livesN">3</b></span>
       <span class="stat">Мана <b id="manaN">100</b></span>
+      <span class="stat" id="critLbl" title="Шанс и множитель критического урона"></span>
       <span class="stat" id="phaseLbl"></span>
       <span class="stat" id="modeLbl"></span>
       <span class="stat muted" id="seedLbl"></span>
@@ -132,9 +194,10 @@
       <div class="card">
         <h2>Забег окончен</h2>
         <div id="resultBody"></div>
-        <div style="display:flex; gap:8px; margin-top:10px">
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
           <button id="restartSameBtn">Ещё раз (тот же сид)</button>
           <button id="restartNewBtn">Новый сид</button>
+          <button id="toMenuBtn" style="flex:1">В меню</button>
         </div>
       </div>
     </div>

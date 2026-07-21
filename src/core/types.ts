@@ -50,6 +50,35 @@ export interface BoostCfg {
   mana?: number;         // прилив маны
 }
 
+/**
+ * Мета-прогрессия между забегами (в духе Random Dice): уровень башни даёт
+ * +урон своему типу и вклад в ОБЩИЙ крит — поэтому качать выгодно любую башню.
+ */
+export interface MetaCfg {
+  currency: { perWave: number; perBossWave: number; perKill: number };
+  towerUpgrade: {
+    baseCost: number;
+    costGrowth: number;
+    maxLevel: number;
+    /** +N% урона/эффекта своему типу за уровень */
+    damagePerLevel: number;
+  };
+  crit: {
+    baseChance: number;      // 0..1 на старте
+    baseMult: number;        // множитель урона при крите
+    chancePerLevel: number;  // + за каждый уровень любой башни
+    multPerLevel: number;
+    maxChance: number;
+  };
+}
+
+/** Сохраняемое состояние игрока между забегами. */
+export interface MetaState {
+  currency: number;
+  /** typeId → уровень башни (1 = не прокачана) */
+  levels: Record<string, number>;
+}
+
 export type DraftPoolEntry =
   | { kind: 'typeDamage' }                       // раскрывается в карточку на каждый тип колоды
   | { kind: 'selector'; n: number }
@@ -86,11 +115,13 @@ export interface BalanceCfg {
   intermissionSec: number;
   earlyWaveBonus: number;
   manaPerKillMult: number;
-  waveHp: { linear: number; stepMult: number; stepEvery: number };
+  /** HP-множитель волны: (1 + linear·X) · growth^X — гладко, без ступенек */
+  waveHp: { linear: number; growth: number };
   boostStartCharge: number; // 0..1, доля готовности кулдаунов на старте
   selectorStart: number;
   deckSize: number;
   draft: DraftCfg;
+  meta: MetaCfg;
   obstacles: ObstaclesCfg;
   boosts: BoostCfg[];
   unitTypes: UnitTypeCfg[];
@@ -163,6 +194,7 @@ export interface AttackEvent {
   /** Начало луча в px (прыжки разряда); если задано — важнее fromCell */
   fromX?: number;
   fromY?: number;
+  crit?: boolean;
 }
 
 /** Взрыв/вспышка без исходной клетки (метеор). */
@@ -203,6 +235,12 @@ export interface RunStats {
   damageByType: Record<string, number>;
   /** Перерасход урона (добивание сверх HP) по источникам */
   overkillByType: Record<string, number>;
+  critHits: number;
+  totalHits: number;
+  /** Урон, добавленный критами сверх обычного */
+  critBonusDamage: number;
+  /** Валюта, заработанная за забег (начисляется на экране итогов) */
+  currencyEarned: number;
   /** Статистика по завершённым волнам */
   waves: WaveStats[];
   /** Использования бустов: id → [{wave, time}] */

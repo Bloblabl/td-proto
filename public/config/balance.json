@@ -4,18 +4,29 @@
   "lives": 3,
   "startMana": 100,
   "summon": { "baseCost": 10, "costStep": 10 },
-  "rankAtkSpeedMult": 1.6,
+  "rankAtkSpeedMult": 1.75,
   "maxRank": 7,
-  "typeUpgrade": { "costs": [100, 200, 400, 800], "multPerLevel": 0.4 },
+  "typeUpgrade": { "costs": [100, 200, 400, 800, 1600, 3200], "multPerLevel": 0.4 },
   "lapsDamage": false,
   "waveInterval": 20,
   "intermissionSec": 2.5,
   "earlyWaveBonus": 25,
   "manaPerKillMult": 1.0,
-  "waveHp": { "linear": 0.15, "stepMult": 1.5, "stepEvery": 10 },
+  "waveHp": { "linear": 0.1, "growth": 1.05 },
   "boostStartCharge": 0.5,
   "selectorStart": 1,
   "deckSize": 5,
+  "meta": {
+    "currency": { "perWave": 3, "perBossWave": 30, "perKill": 0.05 },
+    "towerUpgrade": { "baseCost": 40, "costGrowth": 1.28, "maxLevel": 20, "damagePerLevel": 0.05 },
+    "crit": {
+      "baseChance": 0.05,
+      "baseMult": 2.0,
+      "chancePerLevel": 0.004,
+      "multPerLevel": 0.03,
+      "maxChance": 0.6
+    }
+  },
   "draft": {
     "every": 5,
     "choices": 3,

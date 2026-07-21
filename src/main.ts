@@ -4,6 +4,9 @@ import { randomSeed } from './core/rng';
 import { GameScene } from './render/scene';
 import { Controls } from './ui/controls';
 import { Hud } from './ui/hud';
+import { Menu, type GameMode } from './ui/menu';
+import { shapeSvg } from './render/shapes';
+import { loadMeta } from './ui/storage';
 import type { BalanceCfg, WavesCfg } from './core/types';
 
 const SIM_DT = 0.05; // фиксированный тик 50 мс — детерминизм по сиду
@@ -29,7 +32,8 @@ function pickDeck(balance: BalanceCfg): Promise<string[]> {
     };
     for (const t of balance.unitTypes) {
       const b = document.createElement('button');
-      b.textContent = t.name;
+      // силуэт рядом с названием: игрок запоминает форму до боя
+      b.innerHTML = `${shapeSvg(t.id, t.color, 20)}<br>${t.name}`;
       b.style.borderColor = t.color;
       b.onclick = () => {
         if (picked.has(t.id)) picked.delete(t.id);
@@ -55,12 +59,22 @@ function dailySeed(): number {
 
 async function boot(): Promise<void> {
   const url = new URL(location.href);
-  const mode = url.searchParams.get('mode') ?? 'arcade'; // arcade | daily | boss
+  const balance = await loadJson<BalanceCfg>('./config/balance.json');
+  const meta = loadMeta(balance);
 
-  const [balance, waves] = await Promise.all([
-    loadJson<BalanceCfg>('./config/balance.json'),
-    loadJson<WavesCfg>(mode === 'boss' ? './config/waves_boss.json' : './config/waves.json')
-  ]);
+  // режим из URL (для отладки и рестартов) либо из главного меню
+  const fromUrl = url.searchParams.get('mode');
+  const mode: GameMode = fromUrl === 'daily' || fromUrl === 'boss' || fromUrl === 'arcade'
+    ? fromUrl
+    : await new Menu(balance, meta).waitForChoice();
+  url.searchParams.set('mode', mode);
+  // при заходе по прямой ссылке Menu не создаётся, а разметка стартует с открытым
+  // меню — без этого оно осталось бы висеть поверх игры
+  document.getElementById('menuScreen')?.classList.remove('open');
+
+  const waves = await loadJson<WavesCfg>(
+    mode === 'boss' ? './config/waves_boss.json' : './config/waves.json'
+  );
 
   const seedParam = url.searchParams.get('seed');
   const seed = mode === 'daily' ? dailySeed() : seedParam ? Number(seedParam) >>> 0 : randomSeed();
@@ -74,15 +88,16 @@ async function boot(): Promise<void> {
   } else if (!deckIds || deckIds.length !== balance.deckSize) {
     deckIds = await pickDeck(balance);
     url.searchParams.set('deck', deckIds.join(','));
-    history.replaceState(null, '', url.toString()); // рестарты сохраняют колоду и сид
   }
+  // адресная строка держит режим/колоду, чтобы «Ещё раз» повторял тот же забег
+  history.replaceState(null, '', url.toString());
 
-  const sim = new Sim(balance, waves, seed, deckIds, mode);
+  const sim = new Sim(balance, waves, seed, deckIds, mode, meta);
   const controls = new Controls();
-  const hud = new Hud(sim, controls);
+  const hud = new Hud(sim, controls, meta);
   const scene = new GameScene(sim, controls);
-  // debug-доступ из консоли (§10 ТЗ): td.sim, td.controls
-  Object.assign(window as object, { td: { sim, controls } });
+  // debug-доступ из консоли (§10 ТЗ): td.sim, td.controls, td.scene
+  Object.assign(window as object, { td: { sim, controls, scene, meta } });
 
   new Phaser.Game({
     type: Phaser.AUTO,
