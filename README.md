@@ -8,7 +8,11 @@
 npm install
 npm run dev        # http://localhost:5173
 npm run build      # tsc --noEmit + сборка в dist/ (статика для деплоя)
+npm run smoke      # headless-прогон: детерминизм + новые механики
+npm run deploy     # сборка + публикация на GitHub Pages
 ```
+
+Живая версия для плейтеста: **https://bloblabl.github.io/td-proto/** (исходники: https://github.com/Bloblabl/td-proto).
 
 Фиксированный сид: `http://localhost:5173/?seed=12345` — RNG призыва, мерджа, драфта и процедурных волн детерминирован. Колода: `&deck=gunner,volley,frost,gen,sniper` (без параметра — экран выбора 5 из 7 перед забегом; рестарты сохраняют сид и колоду).
 
