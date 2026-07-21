@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "smoke": "tsx smoke.ts",
-    "deploy": "npm run build && cd dist && git init -b gh-pages && git add -A && git commit -m deploy && git push -f https://github.com/Bloblabl/td-proto.git gh-pages && cd .. && node -e \"require('fs').rmSync('dist/.git',{recursive:true,force:true})\""
+    "smoke": "tsx smoke.ts"
   },
   "dependencies": {
     "phaser": "^3.80.1"
