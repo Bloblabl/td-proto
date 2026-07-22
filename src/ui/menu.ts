@@ -17,6 +17,8 @@ export class Menu {
 
   constructor(private cfg: BalanceCfg, meta: MetaState) {
     this.meta = meta;
+    // версия сборки: номер + git-хэш + дата (подставлены Vite при билде)
+    el('verLbl').textContent = `v${__APP_VERSION__} · ${__GIT_SHA__} · ${__BUILD_DATE__}`;
     el('metaBack').onclick = () => {
       el('metaScreen').classList.remove('open');
       el('menuScreen').classList.add('open');
