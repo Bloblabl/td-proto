@@ -220,12 +220,18 @@ export class GameScene extends Phaser.Scene {
       const frac = Math.max(0, m.hp / m.maxHp);
       v.hpBar.setPosition(p.x - m.type.radius + m.type.radius * frac, p.y - m.type.radius - 5);
       v.hpBar.width = Math.max(1, 2 * m.type.radius * frac);
-      const slowed = this.sim.time < m.slowUntil;   // замедлён = уязвим (получает +урон)
-      const poisoned = m.dotDps > 0 && this.sim.time < m.dotUntil;
-      v.circle.setStrokeStyle(
-        slowed || poisoned ? 3 : 0,
-        slowed ? 0x67e8f9 : 0x22c55e   // голубой (уязвимость) в приоритете над зелёным (яд)
-      );
+      // обводка = активный статус (приоритет: стан > заморозка/слоу > мокро > горение > яд)
+      const now = this.sim.time;
+      let strokeColor = 0;
+      let strokeW = 0;
+      if (now < m.stunUntil) { strokeColor = 0xbae6fd; strokeW = 4; }        // стан — ярко-голубой
+      else if (now < m.slowUntil) { strokeColor = 0x67e8f9; strokeW = 3; }   // мороз/уязвимость
+      else if (now < m.wetUntil) { strokeColor = 0x38bdf8; strokeW = 3; }    // мокро
+      else if (m.dotDps > 0 && now < m.dotUntil) {
+        strokeColor = m.dotElem === 'fire' ? 0xfb923c : 0x22c55e;            // горение / яд
+        strokeW = 3;
+      }
+      v.circle.setStrokeStyle(strokeW, strokeColor);
     }
     for (const [id, v] of this.monsterViews) {
       if (!seen.has(id)) {

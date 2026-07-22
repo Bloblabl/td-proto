@@ -64,6 +64,18 @@ const SPECS: Record<string, ShapeSpec> = {
     hint: '⚡ цепь молний',
     make: (s, size, c) => s.add.polygon(0, 0,
       poly(size, [[0.15, -1], [-0.8, 0.15], [-0.1, 0.15], [-0.25, 1], [0.8, -0.2], [0.05, -0.2]]), c)
+  },
+  // Пиромант — язык пламени: накладывает горение
+  pyro: {
+    hint: '🔥 горение (DoT)',
+    make: (s, size, c) => s.add.polygon(0, 0,
+      poly(size, [[0, -1], [0.4, -0.2], [0.25, 0.4], [0.6, 0.9], [0, 0.65], [-0.6, 0.9], [-0.25, 0.4], [-0.4, -0.2]]), c)
+  },
+  // Ливень — капля вниз: накладывает «мокро»
+  rain: {
+    hint: '💧 мокро (реакции)',
+    make: (s, size, c) => s.add.polygon(0, 0,
+      poly(size, [[0, 1], [0.7, -0.1], [0.5, -0.75], [0, -1], [-0.5, -0.75], [-0.7, -0.1]]), c)
   }
 };
 
@@ -104,6 +116,10 @@ export function shapeSvg(typeId: string, color: string, size = 22): string {
       return wrap(`<polygon points="${pts([[0, -1], [0.7, 0.1], [0.5, 0.75], [0, 1], [-0.5, 0.75], [-0.7, 0.1]])}" fill="${color}"/>`);
     case 'arc':
       return wrap(`<polygon points="${pts([[0.15, -1], [-0.8, 0.15], [-0.1, 0.15], [-0.25, 1], [0.8, -0.2], [0.05, -0.2]])}" fill="${color}"/>`);
+    case 'pyro':
+      return wrap(`<polygon points="${pts([[0, -1], [0.4, -0.2], [0.25, 0.4], [0.6, 0.9], [0, 0.65], [-0.6, 0.9], [-0.25, 0.4], [-0.4, -0.2]])}" fill="${color}"/>`);
+    case 'rain':
+      return wrap(`<polygon points="${pts([[0, 1], [0.7, -0.1], [0.5, -0.75], [0, -1], [-0.5, -0.75], [-0.7, -0.1]])}" fill="${color}"/>`);
     default:
       return wrap(`<rect width="${size}" height="${size}" fill="${color}"/>`);
   }

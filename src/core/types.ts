@@ -10,12 +10,18 @@ export interface UnitTypeCfg {
   slowPct?: number;   // 0..1
   slowDur?: number;   // сек
   manaAmount?: number; // для генератора
-  dotDps?: number;    // яд: урон в секунду
-  dotDur?: number;    // яд: длительность, сек
+  dotDps?: number;    // DoT: плоский урон в секунду
+  dotDur?: number;    // DoT: длительность, сек
+  dotElem?: DotElem;  // элемент DoT: 'poison' (яд) | 'fire' (горение)
+  dotPctPerLevel?: number; // DoT: +% от max HP цели за каждый in-match уровень типа
+  wetDur?: number;    // ливень: длительность статуса «мокро», сек
   chainCount?: number;   // разряд: число прыжков после первой цели
   chainRadius?: number;  // разряд: радиус прыжка, тайлы
   chainFalloff?: number; // разряд: множитель урона за прыжок
 }
+
+/** Элемент DoT — по канону Magicka огонь вытесняет яд, встреча даёт детонацию. */
+export type DotElem = 'poison' | 'fire';
 
 export interface MonsterTypeCfg {
   id: string;
@@ -25,7 +31,8 @@ export interface MonsterTypeCfg {
   reward: number; // маны за убийство
   radius: number; // px, визуал + AoE-попадание
   color: string;
-  slowCap?: number; // макс. суммарное замедление (босс 0.5)
+  slowCap?: number;   // макс. суммарное замедление (босс 0.5)
+  dotPctCap?: number; // множитель %HP-части DoT (босс < 1, чтобы не таял мгновенно)
 }
 
 export type ObstacleKind = 'barricade' | 'spikes' | 'slowzone';
@@ -119,6 +126,13 @@ export interface BalanceCfg {
   waveHp: { linear: number; growth: number };
   /** Множитель урона по замедлённым целям (синергия контроля) */
   slowVulnMult: number;
+  /** Параметры элементных реакций (Magicka-модель) */
+  statusFx: {
+    detonation: { mult: number; radiusTiles: number }; // Яд+Горение → взрыв
+    freezeStunSec: number;    // Мокро+Мороз → стан
+    conductMult: number;      // Мокро+Разряд → +урон по мокрым звеньям
+    steamRadiusTiles: number; // Мокро+Горение → лёгкий AoE от пара
+  };
   boostStartCharge: number; // 0..1, доля готовности кулдаунов на старте
   selectorStart: number;
   /**
@@ -164,9 +178,13 @@ export interface Monster {
   travelled: number;
   slowPct: number;
   slowUntil: number;
-  dotDps: number;
+  dotDps: number;      // плоская часть DoT (абсолют/с)
+  dotPct: number;      // процентная часть DoT — доля ТЕКУЩЕГО hp/с (не убивает сама, затухает)
   dotUntil: number;
-  dotSrc: string; // id типа юнита для статистики
+  dotSrc: string;      // id типа юнита для статистики
+  dotElem: DotElem | ''; // какой элемент DoT висит сейчас ('' — нет)
+  wetUntil: number;    // «мокро» (ливень) — enabler реакций
+  stunUntil: number;   // заморозка/окаменение — монстр стоит на месте
 }
 
 export interface Unit {
