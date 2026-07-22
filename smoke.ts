@@ -78,7 +78,7 @@ function check(name: string, ok: boolean): void {
   if (!ok) failed++;
 }
 
-// --- правило мерджа: по рангу, тип влияет только на результат ---
+// --- правило мерджа: строгое, тип И ранг ---
 {
   const sim = new Sim(balance, waves, 1, ['gunner', 'volley', 'frost', 'gen', 'sniper']);
   sim.addMana(100000);
@@ -88,24 +88,34 @@ function check(name: string, ok: boolean): void {
   u0.typeId = 'gunner'; u1.typeId = 'volley';   // разные типы
   u2.typeId = 'frost'; u3.typeId = 'frost';     // одинаковые
 
-  check('мердж разных типов одного ранга разрешён', sim.canMerge(u0, u1));
-  const okCross = sim.merge(u0.id, u1.id);
-  check('мердж разных типов выполняется', okCross && u1.rank === 3);
-
+  check('разные типы одного ранга НЕ сливаются', !sim.canMerge(u0, u1));
+  check('одинаковые тип+ранг сливаются', sim.canMerge(u2, u3));
   const okSame = sim.merge(u2.id, u3.id);
-  check('мердж одинаковых типов сохраняет тип', okSame && u3.typeId === 'frost' && u3.rank === 3);
+  check('мердж тип+ранг выполняется', okSame && u3.rank === 3);
 
-  // разные ранги слить нельзя
   const a = sim.units[0], b = sim.units[1];
-  a.rank = 2; b.rank = 4;
+  a.typeId = b.typeId = 'gunner'; a.rank = 2; b.rank = 4;
   check('разные ранги не сливаются', !sim.canMerge(a, b));
+}
 
-  // полное поле всегда оставляет ход: 15 юнитов на 6 сливаемых рангов
-  const full = new Sim(balance, waves, 2, ['gunner', 'volley', 'frost', 'gen', 'sniper']);
-  full.addMana(100000);
-  while (full.units.length < full.gridCells) if (!full.summon()) break;
-  full.units.forEach((u, i) => { u.rank = 1 + (i % (balance.maxRank - 1)); u.typeId = balance.unitTypes[i % 5].id; });
-  check('на полном поле ход есть всегда', full.units.length === full.gridCells && full.hasMergeMove());
+// --- умный призыв: страхует от заполнения поля без пар ---
+{
+  const sim = new Sim(balance, waves, 5, ['gunner', 'volley', 'frost', 'gen', 'sniper']);
+  sim.addMana(1000000);
+  // забиваем поле призывами и сразу после каждого проверяем, что ход не потерян
+  let everStuck = false;
+  for (let i = 0; i < 200; i++) {
+    if (!sim.summon()) {
+      // поле полно — умный призыв обязан был оставить пару
+      if (!sim.hasMergeMove()) { everStuck = true; break; }
+      // освобождаем клетку мерджем и продолжаем
+      for (const x of sim.units) {
+        const y = sim.units.find(u => sim.canMerge(x, u));
+        if (y) { sim.merge(x.id, y.id); break; }
+      }
+    }
+  }
+  check('умный призыв не даёт запереть поле', !everStuck);
 }
 
 check('детерминизм по сиду', JSON.stringify(r1) === JSON.stringify(r2));
