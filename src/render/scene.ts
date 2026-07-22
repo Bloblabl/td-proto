@@ -280,15 +280,18 @@ export class GameScene extends Phaser.Scene {
     }
     this.sim.blastEvents = this.sim.blastEvents.filter(e => now - e.t <= 1);
 
-    // подсказка мерджа: пока тащим юнит, обводим все, с которыми он сольётся
+    // подсказка мерджа: обводим всё, с чем сольётся перетаскиваемый юнит.
+    // Зелёный — тот же тип (результат гарантированно этого типа),
+    // жёлтый — другой тип (результат случайный).
     if (this.dragSourceId !== null) {
       const src = this.sim.units.find(u => u.id === this.dragSourceId);
-      if (src && src.rank < this.sim.cfg.maxRank) {
+      if (src) {
         const pulse = 0.55 + 0.45 * Math.sin(now * 8);
         for (const u of this.sim.units) {
-          if (u.id === src.id || u.typeId !== src.typeId || u.rank !== src.rank) continue;
+          if (!this.sim.canMerge(src, u)) continue;
+          const sameType = u.typeId === src.typeId;
           const p = this.sim.cellPx(u.cell);
-          this.fx.lineStyle(3, 0x4caf50, pulse);
+          this.fx.lineStyle(sameType ? 3 : 2, sameType ? 0x4caf50 : 0xffd45e, pulse);
           this.fx.strokeRect(p.x - TILE / 2 + 3, p.y - TILE / 2 + 3, TILE - 6, TILE - 6);
         }
       }

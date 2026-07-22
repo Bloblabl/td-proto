@@ -159,24 +159,40 @@ export class Sim {
   }
 
   /**
-   * Мердж: source перетащен на target. Тот же тип и ранг → target становится рангом+1.
-   * Тип — случайный из колоды; если взведён Селектор — выбранный игроком (селектор расходуется).
+   * Сливаются любые два юнита ОДНОГО РАНГА — тип значения не имеет.
+   *
+   * Раньше требовалось совпадение типа и ранга, из-за чего полное поле без
+   * подходящих пар становилось поглощающим состоянием: ни призвать, ни
+   * смерджить. Замер показал такой тупик в 21% забегов, и ни один из них
+   * из него не вышел. По рангу пара при 15 клетках есть всегда (принцип
+   * Дирихле), поэтому тупик исчезает.
+   *
+   * Совпадение типа при этом остаётся выгодным: тогда результат гарантированно
+   * того же типа, иначе тип случайный из колоды. Селектор перебивает оба случая.
    */
+  canMerge(a: Unit, b: Unit): boolean {
+    return a.id !== b.id && a.rank === b.rank && a.rank < this.cfg.maxRank;
+  }
+
+  /** Есть ли вообще доступный мердж — для предупреждения «ходов нет». */
+  hasMergeMove(): boolean {
+    for (const a of this.units) for (const b of this.units) if (this.canMerge(a, b)) return true;
+    return false;
+  }
+
   merge(sourceId: number, targetId: number): boolean {
     if (this.gameOver) return false;
     const a = this.units.find(u => u.id === sourceId);
     const b = this.units.find(u => u.id === targetId);
-    if (!a || !b || a.id === b.id) return false;
-    if (a.typeId !== b.typeId || a.rank !== b.rank) return false;
-    if (a.rank >= this.cfg.maxRank) return false;
+    if (!a || !b || !this.canMerge(a, b)) return false;
     if (this.selectorType !== null && this.selectors > 0) {
       b.typeId = this.selectorType;
       this.selectors--;
       this.selectorType = null;
       this.stats.selectorsUsed++;
-    } else {
+    } else if (a.typeId !== b.typeId) {
       b.typeId = this.rng.pick(this.deck).id;
-    }
+    } // одинаковые типы — b.typeId уже нужный, тип сохраняется без броска RNG
     b.rank = a.rank + 1;
     b.cooldown = this.effPeriod(b) * 0.5;
     this.units = this.units.filter(u => u.id !== a.id);

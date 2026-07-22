@@ -81,6 +81,7 @@
     .meta-row .lv { font-variant-numeric: tabular-nums; color: #ffd45e; font-weight: 700; }
     .muted { color: #999; font-size: 12px; }
     .reward { color: #ffd45e; font-size: 17px; font-weight: 700; margin: 6px 0; }
+    #stuckLbl { color: #ff6b6b; font-weight: 700; }
 	#upgrow { display: flex; gap: 4px; padding: 4px 8px; background: #24262c; }
     #upgrow button { flex: 1; min-width: 0; min-height: 40px; padding: 3px 2px;
       font-size: 11px; line-height: 1.25; border-width: 2px; }
@@ -128,6 +129,7 @@
       <span class="stat">❤️ <b id="livesN">3</b></span>
       <span class="stat">Мана <b id="manaN">100</b></span>
       <span class="stat" id="critLbl" title="Шанс и множитель критического урона"></span>
+      <span class="stat" id="stuckLbl"></span>
       <span class="stat" id="phaseLbl"></span>
       <span class="stat" id="modeLbl"></span>
       <span class="stat muted" id="seedLbl"></span>
@@ -178,8 +180,10 @@
     <div id="helpPanel" class="panel">
       <b>Правила прототипа</b>
       <p>«Призыв» ставит случайный юнит ранга 1 на свободную клетку (цена растёт).
-      Перетащите юнит на юнит того же типа и ранга — мердж: ранг +1, тип случайный.
-      Смердженный юнит атакует в ×1.6 быстрее, но суммарно слабее двух исходных — думайте, когда мерджить.
+      Перетащите юнит на любой юнит <b>того же ранга</b> — мердж: ранг +1.
+      Если типы совпали, результат гарантированно того же типа (обводка зелёная);
+      если разные — тип случайный из колоды (обводка жёлтая).
+      Смердженный юнит атакует быстрее, но суммарно слабее двух исходных — думайте, когда мерджить.
       Монстр, прошедший полный круг, снимает 1 жизнь и исчезает. «Апгрейды» усиливают все юниты типа за ману.
       «Волна ▶» вызывает следующую волну раньше и даёт бонус маны.</p>
       <p><b>Заграждения</b> (расходники): нажмите кнопку и тапните тайл трека.
