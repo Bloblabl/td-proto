@@ -98,6 +98,40 @@ function check(name: string, ok: boolean): void {
   check('разные ранги не сливаются', !sim.canMerge(a, b));
 }
 
+// --- элементные реакции (Волна 1): через реальный tick ---
+{
+  const s = new Sim(balance, waves, 1, ['gunner', 'frost', 'poison', 'arc', 'pyro']);
+  (s as unknown as { spawnQueue: unknown[] }).spawnQueue = [];
+  const tank = balance.monsterTypes.find(m => m.id === 'tank')!;
+  let nid = 5000;
+  const mob = (progress: number, hp = 5000) => ({
+    id: nid++, type: tank, hp, maxHp: hp, progress, travelled: progress,
+    slowPct: 0, slowUntil: 0, dotDps: 0, dotPct: 0, dotUntil: 0, dotSrc: '',
+    dotElem: '' as const, wetUntil: 0, stunUntil: 0
+  });
+
+  // заморозка: мокрая цель + мороз → стан
+  const f = mob(5); f.wetUntil = s.time + 3; s.monsters = [f];
+  s.units = [{ id: 1, typeId: 'frost', rank: 1, cell: 0, cooldown: 0 }];
+  s.tick(0.05);
+  check('реакция Заморозка (Мокро+Мороз → стан)', f.stunUntil > s.time);
+
+  // детонация: отравленная цель + горение → взрыв
+  const d = mob(5); d.dotElem = 'poison'; d.dotDps = 40; d.dotUntil = s.time + 5; s.monsters = [d];
+  s.units = [{ id: 2, typeId: 'pyro', rank: 1, cell: 0, cooldown: 0 }];
+  const blasts = s.blastEvents.length;
+  s.tick(0.05);
+  check('реакция Детонация (Яд+Горение → взрыв)', s.blastEvents.length > blasts);
+
+  // мокро НЕ разносится молнией (защита от лавины)
+  const w0 = mob(5.4); w0.wetUntil = s.time + 3;
+  const w1 = mob(5.2), w2 = mob(5.0);
+  s.monsters = [w0, w1, w2];
+  s.units = [{ id: 3, typeId: 'arc', rank: 1, cell: 0, cooldown: 0 }];
+  s.tick(0.05);
+  check('Мокро не разносится молнией (нет лавины)', w1.wetUntil <= s.time && w2.wetUntil <= s.time);
+}
+
 // --- умный призыв: страхует от заполнения поля без пар ---
 {
   const sim = new Sim(balance, waves, 5, ['gunner', 'volley', 'frost', 'gen', 'sniper']);

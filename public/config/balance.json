@@ -14,6 +14,12 @@
   "manaPerKillMult": 1.0,
   "waveHp": { "linear": 0.1, "growth": 1.05 },
   "slowVulnMult": 1.3,
+  "statusFx": {
+    "detonation": { "mult": 4.0, "radiusTiles": 1.5 },
+    "freezeStunSec": 1.5,
+    "conductMult": 1.5,
+    "steamRadiusTiles": 1.2
+  },
   "boostStartCharge": 0.5,
   "selectorStart": 1,
   "smartSummon": { "enabled": true, "fillThreshold": 0.6 },
@@ -61,14 +67,16 @@
     { "id": "frost",   "name": "Мороз",     "color": "#67e8f9", "damage": 10,  "period": 1.2, "targeting": "first", "slowPct": 0.3, "slowDur": 2.0 },
     { "id": "gen",     "name": "Генератор", "color": "#facc15", "damage": 0,   "period": 5.0, "targeting": "none",  "manaAmount": 10 },
     { "id": "sniper",  "name": "Снайпер",   "color": "#a855f7", "damage": 200, "period": 4.0, "targeting": "maxhp" },
-    { "id": "poison",  "name": "Яд",        "color": "#22c55e", "damage": 15,  "period": 1.5, "targeting": "first", "dotDps": 40, "dotDur": 5.0 },
-    { "id": "arc",     "name": "Разряд",    "color": "#e2e8f0", "damage": 60,  "period": 2.5, "targeting": "first", "chainCount": 3, "chainRadius": 2.0, "chainFalloff": 0.7 }
+    { "id": "poison",  "name": "Яд",        "color": "#22c55e", "damage": 15,  "period": 1.5, "targeting": "first", "dotDps": 40, "dotDur": 5.0, "dotElem": "poison", "dotPctPerLevel": 0.015 },
+    { "id": "arc",     "name": "Разряд",    "color": "#e2e8f0", "damage": 60,  "period": 2.5, "targeting": "first", "chainCount": 3, "chainRadius": 2.0, "chainFalloff": 0.7 },
+    { "id": "pyro",    "name": "Пиромант",  "color": "#fb923c", "damage": 20,  "period": 1.6, "targeting": "first", "dotDps": 35, "dotDur": 4.0, "dotElem": "fire", "dotPctPerLevel": 0.015 },
+    { "id": "rain",    "name": "Ливень",    "color": "#38bdf8", "damage": 8,   "period": 1.4, "targeting": "first", "aoeRadius": 1.5, "wetDur": 4.0 }
   ],
   "monsterTypes": [
     { "id": "normal", "name": "Обычный", "hp": 100,  "speed": 1.0, "reward": 10,  "radius": 10, "color": "#e05252" },
     { "id": "fast",   "name": "Быстрый", "hp": 60,   "speed": 1.8, "reward": 10,   "radius": 8,  "color": "#f59e9e" },
     { "id": "tank",   "name": "Танк",    "hp": 400,  "speed": 0.6, "reward": 20,  "radius": 14, "color": "#b03636" },
     { "id": "swarm",  "name": "Стая",    "hp": 30,   "speed": 1.2, "reward": 5,   "radius": 6,  "color": "#f0b0b0" },
-    { "id": "boss",   "name": "Босс",    "hp": 3000, "speed": 0.5, "reward": 250, "radius": 20, "color": "#8b1e1e", "slowCap": 0.5 }
+    { "id": "boss",   "name": "Босс",    "hp": 3000, "speed": 0.5, "reward": 250, "radius": 20, "color": "#8b1e1e", "slowCap": 0.5, "dotPctCap": 0.3 }
   ]
 }

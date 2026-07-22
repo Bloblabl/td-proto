@@ -461,8 +461,12 @@ export class Sim {
         slowPct: 0,
         slowUntil: 0,
         dotDps: 0,
+        dotPct: 0,
         dotUntil: 0,
-        dotSrc: ''
+        dotSrc: '',
+        dotElem: '',
+        wetUntil: 0,
+        stunUntil: 0
       });
     }
 
@@ -485,7 +489,9 @@ export class Sim {
       }
       const slow = Math.min(Math.max(frostSlow, zoneSlow), m.type.slowCap ?? 1);
       if (zoneSlow > 0 && zoneSlow >= frostSlow) this.stats.timeBought.slowzone += slow * dt;
-      let step = m.type.speed * (1 - slow) * dt;
+      // стан (заморозка/окаменение) обездвиживает полностью, поверх слоу
+      const stunned = this.time < m.stunUntil;
+      let step = stunned ? 0 : m.type.speed * (1 - slow) * dt;
 
       // ближайшая баррикада впереди: монстр останавливается перед ней и бьёт её
       let blockDist = Infinity;
@@ -536,9 +542,11 @@ export class Sim {
       (o.hp === undefined || o.hp > 0)
     );
 
-    // яд: тики DoT
+    // тики DoT (яд/горение): плоская часть + процент от ТЕКУЩЕГО hp (затухает, не убивает сам)
     for (const m of this.monsters) {
-      if (m.dotDps > 0 && this.time < m.dotUntil) this.hit(m, m.dotDps * dt, m.dotSrc);
+      if (this.time < m.dotUntil && (m.dotDps > 0 || m.dotPct > 0)) {
+        this.hit(m, (m.dotDps + m.dotPct * m.hp) * dt, m.dotSrc);
+      }
     }
 
     // атаки юнитов
@@ -577,50 +585,18 @@ export class Sim {
       } else {
         this.hit(target, dmg, t.id);
       }
-      if (t.slowPct && t.slowDur) {
-        target.slowPct = Math.max(target.slowPct, t.slowPct);
-        target.slowUntil = this.time + t.slowDur;
-      }
-      if (t.dotDps && t.dotDur) {
-        // яд: DoT масштабируется теми же бонусами, что и прямой урон
-        target.dotDps = Math.max(target.dotDps, t.dotDps * this.effMult(u));
-        target.dotUntil = this.time + t.dotDur;
-        target.dotSrc = t.id;
-      }
+      // наложение статусов на основную цель (мороз, ливень, яд/горение с реакциями)
+      if (t.slowPct && t.slowDur) this.applySlow(target, t.slowPct, t.slowDur);
+      if (t.wetDur) this.applyWet(target, t.wetDur);
+      if (t.dotDps && t.dotDur && t.dotElem) this.applyDot(target, u, t);
+
       this.attackEvents.push({
         t: this.time, fromCell: u.cell, x: pos.x, y: pos.y, color: t.color,
         aoeRadiusPx: t.aoeRadius ? t.aoeRadius * TILE : undefined,
         crit: isCrit
       });
-      // разряд: прыжки по ближайшим целям с затуханием урона
-      if (t.chainCount && t.chainRadius) {
-        const hitIds = new Set([target.id]);
-        let from = target;
-        let jumpDmg = dmg;
-        for (let j = 0; j < t.chainCount; j++) {
-          const fp = this.monsterPx(from);
-          const rPx = t.chainRadius * TILE;
-          let next: Monster | null = null;
-          let bestD = Infinity;
-          for (const m of this.monsters) {
-            if (hitIds.has(m.id) || m.hp <= 0) continue;
-            const p = this.monsterPx(m);
-            const dx = p.x - fp.x, dy = p.y - fp.y;
-            const d = dx * dx + dy * dy;
-            if (d <= rPx * rPx && d < bestD) { bestD = d; next = m; }
-          }
-          if (!next) break;
-          jumpDmg *= t.chainFalloff ?? 1;
-          this.hit(next, jumpDmg, t.id);
-          hitIds.add(next.id);
-          const np = this.monsterPx(next);
-          this.attackEvents.push({
-            t: this.time, fromCell: u.cell, fromX: fp.x, fromY: fp.y,
-            x: np.x, y: np.y, color: t.color
-          });
-          from = next;
-        }
-      }
+      // разряд: цепь по ближайшим целям + разнос статусов + проводимость по мокрым
+      if (t.chainCount && t.chainRadius) this.chainLightning(u, t, target, dmg);
       u.cooldown += this.effPeriod(u);
     }
 
@@ -733,6 +709,126 @@ export class Sim {
       if (!best || (mode === 'first' ? m.travelled > best.travelled : m.hp > best.hp)) best = m;
     }
     return best;
+  }
+
+  // ---------- статусы и элементные реакции (Magicka-модель) ----------
+
+  private applySlow(m: Monster, pct: number, dur: number): void {
+    // мороз на мокрую цель → мгновенная заморозка (стан), мокро тратится
+    if (this.time < m.wetUntil) {
+      this.freeze(m);
+      return;
+    }
+    m.slowPct = Math.max(m.slowPct, pct);
+    m.slowUntil = this.time + dur;
+  }
+
+  private applyWet(m: Monster, dur: number): void {
+    // мокро на замедлённую цель → заморозка
+    if (this.time < m.slowUntil) {
+      this.freeze(m);
+      return;
+    }
+    // мокро на горящую цель → пар: гасит горение, лёгкий AoE, мокро не ложится
+    if (m.dotElem === 'fire' && this.time < m.dotUntil) {
+      m.dotUntil = 0; m.dotElem = '';
+      this.aoeAround(m, this.cfg.statusFx.steamRadiusTiles, m.dotDps, 'pyro');
+      return;
+    }
+    m.wetUntil = this.time + dur;
+  }
+
+  private freeze(m: Monster): void {
+    m.stunUntil = Math.max(m.stunUntil, this.time + this.cfg.statusFx.freezeStunSec);
+    m.wetUntil = 0; // мокро израсходовано
+  }
+
+  /** Наложение DoT (яд/горение) с гибридным уроном и детонацией при встрече элементов. */
+  private applyDot(m: Monster, u: Unit, t: UnitTypeCfg): void {
+    const elem = t.dotElem!;
+    // встреча разных элементов DoT → детонация (Яд + Горение)
+    if (m.dotElem !== '' && m.dotElem !== elem && this.time < m.dotUntil) {
+      const fx = this.cfg.statusFx.detonation;
+      this.aoeAround(m, fx.radiusTiles, (m.dotDps + m.dotPct * m.hp) * fx.mult, 'detonate');
+      m.dotUntil = 0; m.dotElem = ''; m.dotPct = 0;
+    }
+    // гибрид: плоская часть (масштаб уровнем/метой) + доля ТЕКУЩЕГО hp/с от уровня башни.
+    // %-часть считается от текущего hp в тике DoT → затухает, сама не убивает (не ломает scaling)
+    const level = this.typeLevels[u.typeId] ?? 1;
+    const flat = t.dotDps! * this.effMult(u);
+    const pct = (t.dotPctPerLevel ?? 0) * (level - 1) * (m.type.dotPctCap ?? 1);
+    if (flat >= m.dotDps || this.time >= m.dotUntil) { m.dotDps = flat; m.dotPct = pct; }
+    m.dotUntil = this.time + t.dotDur!;
+    m.dotElem = elem;
+    m.dotSrc = t.id;
+  }
+
+  private aoeAround(center: Monster, radiusTiles: number, dmg: number, srcId: string): void {
+    const c = this.monsterPx(center);
+    const rPx = radiusTiles * TILE;
+    for (const m of this.monsters) {
+      const p = this.monsterPx(m);
+      const dx = p.x - c.x, dy = p.y - c.y;
+      if (dx * dx + dy * dy <= rPx * rPx) this.hit(m, dmg, srcId);
+    }
+    this.blastEvents.push({ t: this.time, x: c.x, y: c.y, radiusPx: rPx });
+  }
+
+  /** Цепь Разряда: прыжки + разнос Яда/Горения/Мороза + проводимость по мокрым. */
+  private chainLightning(u: Unit, t: UnitTypeCfg, target: Monster, dmg: number): void {
+    const conduct = this.time < target.wetUntil; // проводимость: стартовая цель мокрая
+    const hitIds = new Set([target.id]);
+    let from = target;
+    let jumpDmg = dmg;
+    for (let j = 0; j < (t.chainCount ?? 0); j++) {
+      const fp = this.monsterPx(from);
+      const rPx = (t.chainRadius ?? 0) * TILE;
+      // проводимость приоритетно бьёт мокрых рядом, иначе — ближайшего
+      let next: Monster | null = null;
+      let bestD = Infinity;
+      for (const m of this.monsters) {
+        if (hitIds.has(m.id) || m.hp <= 0) continue;
+        const p = this.monsterPx(m);
+        const dx = p.x - fp.x, dy = p.y - fp.y;
+        const d = dx * dx + dy * dy;
+        if (d > rPx * rPx) continue;
+        const wetBias = conduct && this.time < m.wetUntil ? -1e9 : 0; // мокрые в приоритете
+        if (d + wetBias < bestD) { bestD = d + wetBias; next = m; }
+      }
+      if (!next) break;
+      jumpDmg *= t.chainFalloff ?? 1;
+      const linkDmg = conduct && this.time < next.wetUntil
+        ? jumpDmg * this.cfg.statusFx.conductMult : jumpDmg;
+      this.hit(next, linkDmg, t.id);
+      // разнос: копируем «страдательные» статусы источника (НЕ мокро/заряд — иначе лавина)
+      this.spreadStatuses(from, next);
+      hitIds.add(next.id);
+      const np = this.monsterPx(next);
+      this.attackEvents.push({
+        t: this.time, fromCell: u.cell, fromX: fp.x, fromY: fp.y, x: np.x, y: np.y, color: t.color
+      });
+      from = next;
+    }
+  }
+
+  /** Разнос статусов по цепи: Яд/Горение и Мороз переносятся, Мокро/стан — нет. */
+  private spreadStatuses(from: Monster, to: Monster): void {
+    if (from.dotElem !== '' && this.time < from.dotUntil && to.dotElem !== 'fire') {
+      // встреча разных элементов при разносе → детонация
+      if (from.dotElem !== to.dotElem && to.dotElem !== '' && this.time < to.dotUntil) {
+        const fx = this.cfg.statusFx.detonation;
+        this.aoeAround(to, fx.radiusTiles, (to.dotDps + to.dotPct * to.hp) * fx.mult, 'detonate');
+        to.dotUntil = 0; to.dotElem = '';
+      }
+      if (from.dotDps >= to.dotDps || this.time >= to.dotUntil) { to.dotDps = from.dotDps; to.dotPct = from.dotPct; }
+      to.dotUntil = from.dotUntil;
+      to.dotElem = from.dotElem;
+      to.dotSrc = from.dotSrc;
+    }
+    if (this.time < from.slowUntil) {
+      to.slowPct = Math.max(to.slowPct, from.slowPct);
+      to.slowUntil = Math.max(to.slowUntil, from.slowUntil);
+    }
   }
 
   private hit(m: Monster, dmg: number, typeId: string): void {
