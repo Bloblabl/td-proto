@@ -83,12 +83,15 @@ function run(
 
     // мердж по политике
     if (sim.units.length / cells >= policy.mergeAt) {
-      // мерджим самую низкоранговую пару: освобождает клетку, не ломая топ-юниты
-      let a = null, b = null, lowest = Infinity;
+      // мерджим самую низкоранговую пару: освобождает клетку, не ломая топ-юниты.
+      // При равном ранге предпочитаем совпадение типов — это сохраняет тип
+      let a = null, b = null, lowest = Infinity, bestSame = false;
       for (const x of sim.units) {
         for (const y of sim.units) {
-          if (x.id !== y.id && x.typeId === y.typeId && x.rank === y.rank && x.rank < lowest) {
-            lowest = x.rank; a = x; b = y;
+          if (!sim.canMerge(x, y)) continue;
+          const same = x.typeId === y.typeId;
+          if (x.rank < lowest || (x.rank === lowest && same && !bestSame)) {
+            lowest = x.rank; a = x; b = y; bestSame = same;
           }
         }
       }

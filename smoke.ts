@@ -21,7 +21,7 @@ function run(seed: number, deckIds?: string[], wavesCfg: WavesCfg = waves): {
     // поиск пары для мерджа (иногда — через Селектор)
     outer: for (const a of sim.units) {
       for (const b of sim.units) {
-        if (a.id !== b.id && a.typeId === b.typeId && a.rank === b.rank) {
+        if (sim.canMerge(a, b)) {
           if (sim.selectors > 0 && sim.rng.next() < 0.5) sim.armSelector('gunner');
           sim.merge(a.id, b.id);
           break outer;
@@ -76,6 +76,36 @@ let failed = 0;
 function check(name: string, ok: boolean): void {
   console.log(`${name}: ${ok ? 'OK' : 'FAIL'}`);
   if (!ok) failed++;
+}
+
+// --- правило мерджа: по рангу, тип влияет только на результат ---
+{
+  const sim = new Sim(balance, waves, 1, ['gunner', 'volley', 'frost', 'gen', 'sniper']);
+  sim.addMana(100000);
+  while (sim.units.length < 4) sim.summon();
+  const [u0, u1, u2, u3] = sim.units;
+  for (const u of [u0, u1, u2, u3]) u.rank = 2;
+  u0.typeId = 'gunner'; u1.typeId = 'volley';   // разные типы
+  u2.typeId = 'frost'; u3.typeId = 'frost';     // одинаковые
+
+  check('мердж разных типов одного ранга разрешён', sim.canMerge(u0, u1));
+  const okCross = sim.merge(u0.id, u1.id);
+  check('мердж разных типов выполняется', okCross && u1.rank === 3);
+
+  const okSame = sim.merge(u2.id, u3.id);
+  check('мердж одинаковых типов сохраняет тип', okSame && u3.typeId === 'frost' && u3.rank === 3);
+
+  // разные ранги слить нельзя
+  const a = sim.units[0], b = sim.units[1];
+  a.rank = 2; b.rank = 4;
+  check('разные ранги не сливаются', !sim.canMerge(a, b));
+
+  // полное поле всегда оставляет ход: 15 юнитов на 6 сливаемых рангов
+  const full = new Sim(balance, waves, 2, ['gunner', 'volley', 'frost', 'gen', 'sniper']);
+  full.addMana(100000);
+  while (full.units.length < full.gridCells) if (!full.summon()) break;
+  full.units.forEach((u, i) => { u.rank = 1 + (i % (balance.maxRank - 1)); u.typeId = balance.unitTypes[i % 5].id; });
+  check('на полном поле ход есть всегда', full.units.length === full.gridCells && full.hasMergeMove());
 }
 
 check('детерминизм по сиду', JSON.stringify(r1) === JSON.stringify(r2));

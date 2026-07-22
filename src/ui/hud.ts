@@ -129,6 +129,9 @@ export class Hud {
 			el('dpsOverlay').textContent = rows.length > 0
 				? `DPS за 10 с\n${rows.join('\n')}` : 'DPS за 10 с\n—';
 		}
+		// поле полно и слить нечего — сообщаем прямо, а не оставляем гадать
+		el('stuckLbl').textContent =
+			s.units.length >= s.gridCells && !s.hasMergeMove() ? '⚠ ходов нет' : '';
 		el('phaseLbl').textContent = s.phase === 'intermission'
 			? `⏳ волна через ${Math.max(0, s.intermissionEndsAt - s.time).toFixed(1)} с` : '';
 		const btn = el<HTMLButtonElement>('summonBtn');
