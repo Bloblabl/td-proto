@@ -1,5 +1,6 @@
 import { runReward } from '../core/meta';
 import { Sim } from '../core/sim';
+import { shapeSvg } from '../render/shapes';
 import type { BoostId, MetaState, ObstacleKind } from '../core/types';
 import type { Controls } from './controls';
 import { saveMeta } from './storage';
@@ -50,9 +51,19 @@ export class Hud {
 			};
 		};
 		spd(1, 'spd1'); spd(2, 'spd2'); spd(4, 'spd4');
-		el('pauseBtn').onclick = () => {
+		const togglePause = () => {
 			this.paused = !this.paused;
-			el('pauseBtn').textContent = this.paused ? '▶' : '⏸';
+			const label = this.paused ? '▶' : '⏸';
+			el('pauseBtn').textContent = label;
+			el('pauseTop').textContent = label;
+		};
+		el('pauseBtn').onclick = togglePause;   // дублёр в дебаг-баре (админ)
+		el('pauseTop').onclick = togglePause;   // основная пауза в шапке
+
+		// выход в главное меню (сброс параметров URL); подтверждаем, если забег идёт
+		el('menuBtn').onclick = () => {
+			if (!sim.gameOver && !confirm('Выйти в меню? Текущий забег не сохранится.')) return;
+			location.href = location.origin + location.pathname;
 		};
 
 		el('dbgMana').onclick = () => sim.addMana(1000);
@@ -141,7 +152,9 @@ export class Hud {
 		for (const [id, b] of this.upgButtons) {
 			const t = s.cfg.unitTypes.find(u => u.id === id)!;
 			const cost = s.upgradeTypeCost(id);
-			b.innerHTML = `${t.name}<br>ур.${s.typeLevels[id]} · ${cost === null ? 'MAX' : cost}`;
+			// маленький силуэт типа рядом с названием — сразу видно, какую башню качаешь
+			b.innerHTML = `<span class="ico">${shapeSvg(id, t.color, 14)}</span>${t.name}` +
+				`<br>ур.${s.typeLevels[id]} · ${cost === null ? 'MAX' : cost}`;
 			b.disabled = cost === null || s.mana < cost || s.gameOver;
 		}
 
