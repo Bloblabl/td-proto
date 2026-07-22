@@ -39,7 +39,7 @@ export type ObstacleKind = 'barricade' | 'spikes' | 'slowzone';
 
 export interface ObstaclesCfg {
   barricade: { hp: number; monsterDps: number; maxActive: number };
-  spikes: { damage: number; period: number; duration: number; maxActive: number };
+  spikes: { damage: number; pctCurHp: number; period: number; duration: number; maxActive: number };
   slowzone: { slowPct: number; bossSlowPct: number; tiles: number; duration: number; maxActive: number };
   startInventory: Record<ObstacleKind, number>;
 }
@@ -55,6 +55,7 @@ export interface BoostCfg {
   atkSpeedMult?: number; // перегрев: множитель скорости атаки (2.0 = +100%)
   duration?: number;     // перегрев, сек
   mana?: number;         // прилив маны
+  damagePctMaxHp?: number; // метеор: доля max HP цели (разовый AoE-нюк)
 }
 
 /**
@@ -130,6 +131,7 @@ export interface BalanceCfg {
   statusFx: {
     detonation: { mult: number; radiusTiles: number }; // Яд+Горение → взрыв
     freezeStunSec: number;    // Мокро+Мороз → стан
+    freezeImmuneSec: number;  // иммунитет к заморозке после разморозки
     conductMult: number;      // Мокро+Разряд → +урон по мокрым звеньям
     steamRadiusTiles: number; // Мокро+Горение → лёгкий AoE от пара
   };
@@ -185,6 +187,7 @@ export interface Monster {
   dotElem: DotElem | ''; // какой элемент DoT висит сейчас ('' — нет)
   wetUntil: number;    // «мокро» (ливень) — enabler реакций
   stunUntil: number;   // заморозка/окаменение — монстр стоит на месте
+  freezeImmuneUntil: number; // иммунитет к повторной заморозке (защита от пермафриза)
 }
 
 export interface Unit {

@@ -17,6 +17,7 @@
   "statusFx": {
     "detonation": { "mult": 4.0, "radiusTiles": 1.5 },
     "freezeStunSec": 1.5,
+    "freezeImmuneSec": 6.0,
     "conductMult": 1.5,
     "steamRadiusTiles": 1.2
   },
@@ -52,12 +53,12 @@
   },
   "obstacles": {
     "barricade": { "hp": 500, "monsterDps": 10, "maxActive": 2 },
-    "spikes":    { "damage": 30, "period": 0.5, "duration": 10, "maxActive": 3 },
+    "spikes":    { "damage": 0, "pctCurHp": 0.08, "period": 0.5, "duration": 10, "maxActive": 3 },
     "slowzone":  { "slowPct": 0.5, "bossSlowPct": 0.25, "tiles": 3, "duration": 15, "maxActive": 2 },
     "startInventory": { "barricade": 1, "spikes": 2, "slowzone": 1 }
   },
   "boosts": [
-    { "id": "meteor",    "name": "Метеор",   "cooldown": 45, "damage": 500, "radiusTiles": 2 },
+    { "id": "meteor",    "name": "Метеор",   "cooldown": 45, "damage": 0, "damagePctMaxHp": 0.25, "radiusTiles": 2 },
     { "id": "overdrive", "name": "Перегрев", "cooldown": 60, "atkSpeedMult": 2.0, "duration": 8 },
     { "id": "manasurge", "name": "Прилив",   "cooldown": 90, "mana": 150 }
   ],
