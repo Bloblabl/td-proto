@@ -136,7 +136,7 @@ export class Sim {
     return t;
   }
 
-  /** Призыв случайного юнита колоды ранга 1 (или 2 — эффект драфта) на случайную свободную клетку. */
+  /** Призыв юнита колоды ранга 1 (или 2 — эффект драфта) на случайную свободную клетку. */
   summon(): boolean {
     if (this.gameOver) return false;
     const cost = this.summonCost;
@@ -146,32 +146,53 @@ export class Sim {
     for (let i = 0; i < this.gridCells; i++) if (!occupied.has(i)) free.push(i);
     if (free.length === 0) return false;
     const cell = this.rng.pick(free);
-    const type = this.rng.pick(this.deck);
+    const willBeRank2 = this.rank2Summons > 0;
+    const rank = willBeRank2 ? 2 : 1;
+    const type = this.pickSummonType(free.length, rank);
+    if (willBeRank2) this.rank2Summons--;
     this.mana -= cost;
     this.stats.manaSpentSummon += cost;
     this.waveAcc.manaSpentSummon += cost;
     this.summonCount++;
     this.stats.summons++;
-    let rank = 1;
-    if (this.rank2Summons > 0) { rank = 2; this.rank2Summons--; }
     this.units.push({ id: this.nextId++, typeId: type.id, rank, cell, cooldown: type.period * 0.5 });
     return true;
   }
 
   /**
-   * Сливаются любые два юнита ОДНОГО РАНГА — тип значения не имеет.
-   *
-   * Раньше требовалось совпадение типа и ранга, из-за чего полное поле без
-   * подходящих пар становилось поглощающим состоянием: ни призвать, ни
-   * смерджить. Замер показал такой тупик в 21% забегов, и ни один из них
-   * из него не вышел. По рангу пара при 15 клетках есть всегда (принцип
-   * Дирихле), поэтому тупик исчезает.
-   *
-   * Совпадение типа при этом остаётся выгодным: тогда результат гарантированно
-   * того же типа, иначе тип случайный из колоды. Селектор перебивает оба случая.
+   * Выбор типа для призыва. Обычно случайный из колоды, но при высоком
+   * заполнении поля и отсутствии доступного мерджа подкручивается в сторону
+   * типа, создающего пару с уже стоящим одиночным юнитом того же ранга —
+   * так поле не заполняется в безвыходный тупик. Скрыто от игрока.
+   */
+  private pickSummonType(freeCells: number, rank: number): UnitTypeCfg {
+    const cfg = this.cfg.smartSummon;
+    if (cfg.enabled) {
+      const occupancy = (this.gridCells - freeCells) / this.gridCells;
+      // страховка нужна, только когда поле уже тесное и пары мерджа нет
+      if (occupancy >= cfg.fillThreshold && !this.hasMergeMove()) {
+        // типы одиночных юнитов того же ранга — призыв такого типа даст пару
+        const seen = new Set<string>();
+        const pairing: UnitTypeCfg[] = [];
+        for (const u of this.units) {
+          if (u.rank === rank && !seen.has(u.typeId) && this.deck.some(t => t.id === u.typeId)) {
+            seen.add(u.typeId);
+            pairing.push(this.unitType(u.typeId));
+          }
+        }
+        if (pairing.length > 0) return this.rng.pick(pairing);
+      }
+    }
+    return this.rng.pick(this.deck);
+  }
+
+  /**
+   * Сливаются два юнита ОДНОГО ТИПА И РАНГА — строгое правило (как в ТЗ).
+   * Оставляет осмысленное решение «мерджить или копить»; от RNG-тупика полного
+   * поля страхует «умный призыв» (см. pickSummonType), а не ослабление мерджа.
    */
   canMerge(a: Unit, b: Unit): boolean {
-    return a.id !== b.id && a.rank === b.rank && a.rank < this.cfg.maxRank;
+    return a.id !== b.id && a.typeId === b.typeId && a.rank === b.rank && a.rank < this.cfg.maxRank;
   }
 
   /** Есть ли вообще доступный мердж — для предупреждения «ходов нет». */
@@ -190,9 +211,9 @@ export class Sim {
       this.selectors--;
       this.selectorType = null;
       this.stats.selectorsUsed++;
-    } else if (a.typeId !== b.typeId) {
+    } else {
       b.typeId = this.rng.pick(this.deck).id;
-    } // одинаковые типы — b.typeId уже нужный, тип сохраняется без броска RNG
+    }
     b.rank = a.rank + 1;
     b.cooldown = this.effPeriod(b) * 0.5;
     this.units = this.units.filter(u => u.id !== a.id);

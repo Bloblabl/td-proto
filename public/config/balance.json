@@ -15,6 +15,7 @@
   "waveHp": { "linear": 0.1, "growth": 1.05 },
   "boostStartCharge": 0.5,
   "selectorStart": 1,
+  "smartSummon": { "enabled": true, "fillThreshold": 0.6 },
   "deckSize": 5,
   "meta": {
     "currency": { "perWave": 3, "perBossWave": 30, "perKill": 0.05 },

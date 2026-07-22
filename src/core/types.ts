@@ -119,6 +119,12 @@ export interface BalanceCfg {
   waveHp: { linear: number; growth: number };
   boostStartCharge: number; // 0..1, доля готовности кулдаунов на старте
   selectorStart: number;
+  /**
+   * Умный призыв: при заполнении поля ≥ fillThreshold и отсутствии пар
+   * тип нового юнита подкручивается в сторону создающего пару. Скрытая
+   * страховка от RNG-тупика; механика мерджа остаётся строгой.
+   */
+  smartSummon: { enabled: boolean; fillThreshold: number };
   deckSize: number;
   draft: DraftCfg;
   meta: MetaCfg;
