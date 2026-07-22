@@ -107,7 +107,7 @@ function check(name: string, ok: boolean): void {
   const mob = (progress: number, hp = 5000) => ({
     id: nid++, type: tank, hp, maxHp: hp, progress, travelled: progress,
     slowPct: 0, slowUntil: 0, dotDps: 0, dotPct: 0, dotUntil: 0, dotSrc: '',
-    dotElem: '' as const, wetUntil: 0, stunUntil: 0
+    dotElem: '' as const, wetUntil: 0, stunUntil: 0, freezeImmuneUntil: 0
   });
 
   // заморозка: мокрая цель + мороз → стан
@@ -130,6 +130,17 @@ function check(name: string, ok: boolean): void {
   s.units = [{ id: 3, typeId: 'arc', rank: 1, cell: 0, cooldown: 0 }];
   s.tick(0.05);
   check('Мокро не разносится молнией (нет лавины)', w1.wetUntil <= s.time && w2.wetUntil <= s.time);
+
+  // иммунитет к заморозке: повторная заморозка в окно иммунитета не проходит
+  const fz = mob(5); fz.wetUntil = s.time + 3; s.monsters = [fz];
+  s.units = [{ id: 4, typeId: 'frost', rank: 1, cell: 0, cooldown: 0 }];
+  s.tick(0.05);
+  const stun1 = fz.stunUntil, imm = fz.freezeImmuneUntil;
+  fz.wetUntil = s.time + 3; // снова мочим — но иммунитет активен
+  s.units = [{ id: 5, typeId: 'frost', rank: 1, cell: 0, cooldown: 0 }];
+  s.tick(0.05);
+  check('Заморозка ставит иммунитет (защита от пермафриза)',
+    stun1 > s.time && imm > stun1 && fz.stunUntil <= stun1 + 0.1);
 }
 
 // --- умный призыв: страхует от заполнения поля без пар ---

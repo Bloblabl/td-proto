@@ -354,7 +354,10 @@ export class Sim {
       for (const m of this.monsters) {
         const p = this.monsterPx(m);
         const dx = p.x - x, dy = p.y - y;
-        if (dx * dx + dy * dy <= rPx * rPx) this.hit(m, cfg.damage ?? 0, 'meteor');
+        // разовый AoE-нюк: плоский урон + доля max HP цели (анти-жир/босс)
+        if (dx * dx + dy * dy <= rPx * rPx) {
+          this.hit(m, (cfg.damage ?? 0) + m.maxHp * (cfg.damagePctMaxHp ?? 0), 'meteor');
+        }
       }
       this.blastEvents.push({ t: this.time, x, y, radiusPx: rPx });
     } else if (id === 'overdrive') {
@@ -466,7 +469,8 @@ export class Sim {
         dotSrc: '',
         dotElem: '',
         wetUntil: 0,
-        stunUntil: 0
+        stunUntil: 0,
+        freezeImmuneUntil: 0
       });
     }
 
@@ -530,7 +534,10 @@ export class Sim {
       if (o.kind !== 'spikes') continue;
       while (o.nextTickAt !== undefined && this.time >= o.nextTickAt && this.time <= (o.expiresAt ?? 0)) {
         for (const m of this.monsters) {
-          if (Math.floor(m.progress) % trackLen === o.tile) this.hit(m, spikeCfg.damage, 'spikes');
+          // урон за тик: плоский + доля ТЕКУЩЕГО hp (затухает, сам не убивает — «мясорубка»)
+          if (Math.floor(m.progress) % trackLen === o.tile) {
+            this.hit(m, spikeCfg.damage + m.hp * spikeCfg.pctCurHp, 'spikes');
+          }
         }
         o.nextTickAt += spikeCfg.period;
       }
@@ -714,33 +721,36 @@ export class Sim {
   // ---------- статусы и элементные реакции (Magicka-модель) ----------
 
   private applySlow(m: Monster, pct: number, dur: number): void {
-    // мороз на мокрую цель → мгновенная заморозка (стан), мокро тратится
-    if (this.time < m.wetUntil) {
-      this.freeze(m);
-      return;
-    }
+    // мороз на мокрую цель → заморозка; если сработала, статус наложен, выходим
+    if (this.time < m.wetUntil && this.tryFreeze(m)) return;
     m.slowPct = Math.max(m.slowPct, pct);
     m.slowUntil = this.time + dur;
   }
 
   private applyWet(m: Monster, dur: number): void {
     // мокро на замедлённую цель → заморозка
-    if (this.time < m.slowUntil) {
-      this.freeze(m);
-      return;
-    }
+    if (this.time < m.slowUntil && this.tryFreeze(m)) return;
     // мокро на горящую цель → пар: гасит горение, лёгкий AoE, мокро не ложится
     if (m.dotElem === 'fire' && this.time < m.dotUntil) {
-      m.dotUntil = 0; m.dotElem = '';
+      m.dotUntil = 0; m.dotElem = ''; m.dotPct = 0;
       this.aoeAround(m, this.cfg.statusFx.steamRadiusTiles, m.dotDps, 'pyro');
       return;
     }
     m.wetUntil = this.time + dur;
   }
 
-  private freeze(m: Monster): void {
+  /**
+   * Попытка заморозить. Возвращает true, если стан наложен; false — если
+   * действует иммунитет (тогда вызывающий кладёт обычный статус, не стан).
+   * После разморозки монстр невосприимчив ещё freezeImmuneSec — защита от
+   * пермафриза: иначе Ливень+Мороз держали бы цель в вечном стане.
+   */
+  private tryFreeze(m: Monster): boolean {
+    if (this.time < m.freezeImmuneUntil) return false; // иммунитет активен
     m.stunUntil = Math.max(m.stunUntil, this.time + this.cfg.statusFx.freezeStunSec);
     m.wetUntil = 0; // мокро израсходовано
+    m.freezeImmuneUntil = m.stunUntil + this.cfg.statusFx.freezeImmuneSec;
+    return true;
   }
 
   /** Наложение DoT (яд/горение) с гибридным уроном и детонацией при встрече элементов. */
