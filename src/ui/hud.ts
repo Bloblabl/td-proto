@@ -140,11 +140,19 @@ export class Hud {
 			el('dpsOverlay').textContent = rows.length > 0
 				? `DPS за 10 с\n${rows.join('\n')}` : 'DPS за 10 с\n—';
 		}
-		// поле полно и слить нечего — сообщаем прямо, а не оставляем гадать
-		el('stuckLbl').textContent =
-			s.units.length >= s.gridCells && !s.hasMergeMove() ? '⚠ ходов нет' : '';
-		el('phaseLbl').textContent = s.phase === 'intermission'
-			? `⏳ волна через ${Math.max(0, s.intermissionEndsAt - s.time).toFixed(1)} с` : '';
+		// таймер волны и предупреждение «ходов нет» — оверлеем над полем (не двигают бар).
+		// Приоритет у предупреждения: оно важнее косметического таймера.
+		const banner = el('centerBanner');
+		const stuck = s.units.length >= s.gridCells && !s.hasMergeMove();
+		if (stuck) {
+			banner.textContent = '⚠ ходов нет';
+		} else if (s.phase === 'intermission') {
+			banner.textContent = `⏳ волна через ${Math.max(0, s.intermissionEndsAt - s.time).toFixed(1)} с`;
+		} else {
+			banner.textContent = '';
+		}
+		banner.classList.toggle('show', banner.textContent !== '');
+		banner.classList.toggle('warn', stuck);
 		const btn = el<HTMLButtonElement>('summonBtn');
 		btn.textContent = `Призыв (${s.summonCost})`;
 		btn.disabled = s.mana < s.summonCost || s.gameOver;
