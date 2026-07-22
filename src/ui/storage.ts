@@ -32,3 +32,20 @@ export function resetMeta(cfg: BalanceCfg): MetaState {
   } catch { /* см. выше */ }
   return emptyMeta(cfg);
 }
+
+const ADMIN_KEY = 'td-proto-admin';
+
+export function loadAdmin(): boolean {
+  try {
+    return localStorage.getItem(ADMIN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveAdmin(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(ADMIN_KEY, '1');
+    else localStorage.removeItem(ADMIN_KEY);
+  } catch { /* приватный режим — админ просто не запомнится */ }
+}

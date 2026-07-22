@@ -1,7 +1,7 @@
 import { buyUpgrade, critStats, towerDamageBonus, upgradeCost } from '../core/meta';
 import { shapeSvg } from '../render/shapes';
 import type { BalanceCfg, MetaState } from '../core/types';
-import { resetMeta, saveMeta } from './storage';
+import { loadAdmin, resetMeta, saveAdmin, saveMeta } from './storage';
 
 export type GameMode = 'arcade' | 'daily' | 'boss';
 
@@ -28,6 +28,19 @@ export class Menu {
       this.renderMeta();
     };
     el('menuHelp').onclick = () => el('helpPanel').classList.toggle('open');
+
+    // админ-режим: тумблер, применяется к телу страницы (CSS показывает дебаг-бар)
+    const applyAdmin = (on: boolean): void => {
+      document.body.classList.toggle('admin', on);
+      el('adminToggle').textContent = `🛠 Админ-режим: ${on ? 'вкл' : 'выкл'}`;
+      el('adminToggle').classList.toggle('active', on);
+    };
+    applyAdmin(loadAdmin());
+    el('adminToggle').onclick = () => {
+      const on = !loadAdmin();
+      saveAdmin(on);
+      applyAdmin(on);
+    };
     el('metaReset').onclick = () => {
       if (!confirm('Сбросить всю прокачку и ядра?')) return;
       const fresh = resetMeta(this.cfg);
