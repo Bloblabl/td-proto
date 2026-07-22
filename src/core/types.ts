@@ -117,6 +117,8 @@ export interface BalanceCfg {
   manaPerKillMult: number;
   /** HP-множитель волны: (1 + linear·X) · growth^X — гладко, без ступенек */
   waveHp: { linear: number; growth: number };
+  /** Множитель урона по замедлённым целям (синергия контроля) */
+  slowVulnMult: number;
   boostStartCharge: number; // 0..1, доля готовности кулдаунов на старте
   selectorStart: number;
   /**

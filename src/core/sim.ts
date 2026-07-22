@@ -728,13 +728,18 @@ export class Sim {
     let best: Monster | null = null;
     for (const m of this.monsters) {
       if (m.hp <= 0) continue; // умер в этом тике
-      if (!best || (mode === 'first' ? m.travelled > best.travelled : m.maxHp > best.maxHp)) best = m;
+      // maxhp таргетит по ТЕКУЩЕМУ hp (жирнейшая живая цель), а не по стартовому maxHp —
+      // иначе Снайпер добивал почти мёртвых танков и сжигал ~17% урона в overkill
+      if (!best || (mode === 'first' ? m.travelled > best.travelled : m.hp > best.hp)) best = m;
     }
     return best;
   }
 
   private hit(m: Monster, dmg: number, typeId: string): void {
     if (m.hp <= 0) return; // уже мёртв (умер в этом же тике) — не бить и не считать
+    // синергия контроля: замедлённые цели получают больше урона от ВСЕХ источников —
+    // это делает Мороз/слоу-зону усилителем состава, а не слабой отдельной пушкой
+    if (this.time < m.slowUntil) dmg *= this.cfg.slowVulnMult;
     const applied = Math.min(m.hp, dmg);
     if (dmg > m.hp) {
       this.stats.overkillByType[typeId] = (this.stats.overkillByType[typeId] ?? 0) + (dmg - m.hp);

@@ -220,11 +220,11 @@ export class GameScene extends Phaser.Scene {
       const frac = Math.max(0, m.hp / m.maxHp);
       v.hpBar.setPosition(p.x - m.type.radius + m.type.radius * frac, p.y - m.type.radius - 5);
       v.hpBar.width = Math.max(1, 2 * m.type.radius * frac);
-      const slowed = this.sim.time < m.slowUntil;
+      const slowed = this.sim.time < m.slowUntil;   // замедлён = уязвим (получает +урон)
       const poisoned = m.dotDps > 0 && this.sim.time < m.dotUntil;
       v.circle.setStrokeStyle(
         slowed || poisoned ? 3 : 0,
-        poisoned ? 0x22c55e : 0x67e8f9
+        slowed ? 0x67e8f9 : 0x22c55e   // голубой (уязвимость) в приоритете над зелёным (яд)
       );
     }
     for (const [id, v] of this.monsterViews) {
