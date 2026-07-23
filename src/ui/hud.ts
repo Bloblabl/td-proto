@@ -60,10 +60,16 @@ export class Hud {
 		el('pauseBtn').onclick = togglePause;   // дублёр в дебаг-баре (админ)
 		el('pauseTop').onclick = togglePause;   // основная пауза в шапке
 
-		// выход в главное меню (сброс параметров URL); подтверждаем, если забег идёт
+		// «Сдаться»: завершает забег с начислением награды за достигнутый прогресс
+		// (экран итогов начислит валюту). Если забег уже окончен — сразу в меню.
 		el('menuBtn').onclick = () => {
-			if (!sim.gameOver && !confirm('Выйти в меню? Текущий забег не сохранится.')) return;
-			location.href = location.origin + location.pathname;
+			if (sim.gameOver) {
+				location.href = location.origin + location.pathname;
+				return;
+			}
+			if (confirm('Сдаться и завершить забег? Награда за достигнутый прогресс начислится.')) {
+				sim.gameOver = true; // update() покажет экран итогов с наградой
+			}
 		};
 
 		el('dbgMana').onclick = () => sim.addMana(1000);
