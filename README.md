@@ -10,7 +10,21 @@ npm run dev        # http://localhost:5173
 npm run build      # tsc --noEmit + сборка в dist/ (статика для деплоя)
 npm run smoke      # headless-прогон: детерминизм + механики (гейт CI)
 npm run balance 200  # массовые балансные симуляции на N сидов
+npm run server     # auth-сервер (Node + SQLite) на http://localhost:3000
 ```
+
+## Авторизация и сохранение прогресса
+
+Гость — прогресс в localStorage браузера. Вход в аккаунт — прогресс на сервере
+(мини-БД SQLite), доступен с любого устройства.
+
+- Сервер: `npm run server` (Express + встроенный `node:sqlite`, файл БД
+  `server/data/td.db`, в git не коммитится). Пароли хешируются (bcrypt), сессия — JWT.
+- В dev Vite проксирует `/api` на `localhost:3000` (см. `vite.config.ts`).
+- Эндпоинты: `POST /api/register`, `POST /api/login`, `GET|PUT /api/progress`.
+- На задеплоенном GitHub Pages сервера нет (только статика) — там гостевой режим.
+  Для авторизации на проде сервер нужно захостить отдельно (Render/VPS);
+  `JWT_SECRET` задать через переменную окружения.
 
 Живая версия для плейтеста: **https://bloblabl.github.io/td-proto/** (исходники: https://github.com/Bloblabl/td-proto).
 Деплой автоматический: пуш в `master` запускает `.github/workflows/deploy.yml` — smoke → сборка → публикация. Если smoke или проверка типов падают, билд на прод не уезжает.

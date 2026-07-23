@@ -16,5 +16,7 @@ export default defineConfig({
     __GIT_SHA__: JSON.stringify(sha),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10))
   },
+  // в dev проксируем /api на локальный auth-сервер (npm run server)
+  server: { proxy: { '/api': 'http://localhost:3000' } },
   build: { outDir: 'dist', sourcemap: true }
 });

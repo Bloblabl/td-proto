@@ -1,12 +1,14 @@
 import { emptyMeta, normalizeMeta } from '../core/meta';
 import type { BalanceCfg, MetaState } from '../core/types';
+import { fetchProgress, isAuthed, logout, pushProgress } from './auth';
 
 /**
- * Сохранение меты в localStorage. Единственное место, где ядро касается
- * браузера — при порте на C# заменяется на PlayerPrefs/файл, core/meta.ts не меняется.
+ * Хранение меты. Гость — localStorage; залогиненный — сервер (мини-БД).
+ * Ядро (core/meta.ts) браузера не касается; при порте на C# меняется только это.
  */
 const KEY = 'td-proto-meta-v1';
 
+/** Локальное чтение (гость / кэш). */
 export function loadMeta(cfg: BalanceCfg): MetaState {
   try {
     const raw = localStorage.getItem(KEY);
@@ -18,11 +20,25 @@ export function loadMeta(cfg: BalanceCfg): MetaState {
   }
 }
 
+/** Загрузка при старте: с сервера, если вошёл; иначе локально. */
+export async function loadMetaAsync(cfg: BalanceCfg): Promise<MetaState> {
+  if (isAuthed()) {
+    try {
+      return normalizeMeta(cfg, await fetchProgress());
+    } catch {
+      // токен протух или сервер недоступен — выходим в гостя, не теряя игру
+      logout();
+    }
+  }
+  return loadMeta(cfg);
+}
+
 export function saveMeta(meta: MetaState): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(meta));
-  } catch {
-    // приватный режим / переполнение — прогресс просто не сохранится
+    localStorage.setItem(KEY, JSON.stringify(meta)); // локальный кэш всегда
+  } catch { /* приватный режим / переполнение */ }
+  if (isAuthed()) {
+    void pushProgress(meta).catch(() => undefined); // на сервер, не блокируя игру
   }
 }
 
