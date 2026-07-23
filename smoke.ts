@@ -107,7 +107,7 @@ function check(name: string, ok: boolean): void {
   const mob = (progress: number, hp = 5000) => ({
     id: nid++, type: tank, hp, maxHp: hp, progress, travelled: progress,
     slowPct: 0, slowUntil: 0, dotDps: 0, dotPct: 0, dotUntil: 0, dotSrc: '',
-    dotElem: '' as const, wetUntil: 0, stunUntil: 0, freezeImmuneUntil: 0
+    dotElem: '' as const, wetUntil: 0, stunUntil: 0, freezeImmuneUntil: 0, sunderUntil: 0
   });
 
   // заморозка: мокрая цель + мороз → стан
@@ -141,6 +141,19 @@ function check(name: string, ok: boolean): void {
   s.tick(0.05);
   check('Заморозка ставит иммунитет (защита от пермафриза)',
     stun1 > s.time && imm > stun1 && fz.stunUntil <= stun1 + 0.1);
+
+  // Волна 2: Дробитель ставит Разлом, Арканист детонирует статусы
+  const sd = mob(5); s.monsters = [sd];
+  s.units = [{ id: 6, typeId: 'crush', rank: 1, cell: 0, cooldown: 0 }];
+  s.tick(0.05);
+  check('Дробитель ставит Разлом', sd.sunderUntil > s.time);
+
+  const ar = mob(5.4); ar.dotElem = 'poison'; ar.dotDps = 40; ar.dotUntil = s.time + 5;
+  ar.sunderUntil = s.time + 3; s.monsters = [ar];
+  s.units = [{ id: 7, typeId: 'arcane', rank: 1, cell: 0, cooldown: 0 }];
+  const nb = s.blastEvents.length;
+  s.tick(0.05);
+  check('Арканист детонирует статусы', s.blastEvents.length > nb && ar.dotElem === '');
 }
 
 // --- умный призыв: страхует от заполнения поля без пар ---

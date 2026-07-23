@@ -18,6 +18,10 @@ export interface UnitTypeCfg {
   chainCount?: number;   // разряд: число прыжков после первой цели
   chainRadius?: number;  // разряд: радиус прыжка, тайлы
   chainFalloff?: number; // разряд: множитель урона за прыжок
+  sunderDur?: number;    // дробитель: длительность «разлома», сек
+  detonateAll?: boolean; // арканист: детонирует все статусы цели
+  petrifyChance?: number; // медуза: шанс окаменения (стан) при атаке, 0..1
+  petrifyDur?: number;   // медуза: длительность окаменения, сек
 }
 
 /** Элемент DoT — по канону Magicka огонь вытесняет яд, встреча даёт детонацию. */
@@ -131,9 +135,13 @@ export interface BalanceCfg {
   statusFx: {
     detonation: { mult: number; radiusTiles: number }; // Яд+Горение → взрыв
     freezeStunSec: number;    // Мокро+Мороз → стан
-    freezeImmuneSec: number;  // иммунитет к заморозке после разморозки
+    freezeImmuneSec: number;  // иммунитет к стану после стана
     conductMult: number;      // Мокро+Разряд → +урон по мокрым звеньям
     steamRadiusTiles: number; // Мокро+Горение → лёгкий AoE от пара
+    sunderMult: number;       // разлом: множитель урона по цели без брони
+    sunderSlowPct: number;    // разлом: замедление тяжёлых
+    arcaneMult: number;       // арканист: урон детонации за каждый статус
+    arcaneRadiusTiles: number;
   };
   boostStartCharge: number; // 0..1, доля готовности кулдаунов на старте
   selectorStart: number;
@@ -187,7 +195,8 @@ export interface Monster {
   dotElem: DotElem | ''; // какой элемент DoT висит сейчас ('' — нет)
   wetUntil: number;    // «мокро» (ливень) — enabler реакций
   stunUntil: number;   // заморозка/окаменение — монстр стоит на месте
-  freezeImmuneUntil: number; // иммунитет к повторной заморозке (защита от пермафриза)
+  freezeImmuneUntil: number; // общий иммунитет к стану после стана (анти-перма-стан)
+  sunderUntil: number; // «разлом» (дробитель) — +урон и замедление
 }
 
 export interface Unit {

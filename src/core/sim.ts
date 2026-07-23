@@ -470,7 +470,8 @@ export class Sim {
         dotElem: '',
         wetUntil: 0,
         stunUntil: 0,
-        freezeImmuneUntil: 0
+        freezeImmuneUntil: 0,
+        sunderUntil: 0
       });
     }
 
@@ -491,7 +492,8 @@ export class Sim {
           break;
         }
       }
-      const slow = Math.min(Math.max(frostSlow, zoneSlow), m.type.slowCap ?? 1);
+      const sunderSlow = this.time < m.sunderUntil ? this.cfg.statusFx.sunderSlowPct : 0;
+      const slow = Math.min(Math.max(frostSlow, zoneSlow, sunderSlow), m.type.slowCap ?? 1);
       if (zoneSlow > 0 && zoneSlow >= frostSlow) this.stats.timeBought.slowzone += slow * dt;
       // стан (заморозка/окаменение) обездвиживает полностью, поверх слоу
       const stunned = this.time < m.stunUntil;
@@ -592,10 +594,15 @@ export class Sim {
       } else {
         this.hit(target, dmg, t.id);
       }
-      // наложение статусов на основную цель (мороз, ливень, яд/горение с реакциями)
+      // наложение статусов на основную цель (мороз, ливень, яд/горение, разлом, окаменение)
       if (t.slowPct && t.slowDur) this.applySlow(target, t.slowPct, t.slowDur);
       if (t.wetDur) this.applyWet(target, t.wetDur);
       if (t.dotDps && t.dotDur && t.dotElem) this.applyDot(target, u, t);
+      if (t.sunderDur) this.applySunder(target, t.sunderDur);
+      if (t.detonateAll) this.detonateAll(target, u, t);
+      if (t.petrifyChance && this.rng.next() < t.petrifyChance) {
+        this.tryStun(target, t.petrifyDur ?? 1);
+      }
 
       this.attackEvents.push({
         t: this.time, fromCell: u.cell, x: pos.x, y: pos.y, color: t.color,
@@ -722,14 +729,17 @@ export class Sim {
 
   private applySlow(m: Monster, pct: number, dur: number): void {
     // мороз на мокрую цель → заморозка; если сработала, статус наложен, выходим
-    if (this.time < m.wetUntil && this.tryFreeze(m)) return;
+    if (this.time < m.wetUntil && this.tryStun(m, this.cfg.statusFx.freezeStunSec)) {
+      m.wetUntil = 0; // мокро израсходовано заморозкой
+      return;
+    }
     m.slowPct = Math.max(m.slowPct, pct);
     m.slowUntil = this.time + dur;
   }
 
   private applyWet(m: Monster, dur: number): void {
     // мокро на замедлённую цель → заморозка
-    if (this.time < m.slowUntil && this.tryFreeze(m)) return;
+    if (this.time < m.slowUntil && this.tryStun(m, this.cfg.statusFx.freezeStunSec)) return;
     // мокро на горящую цель → пар: гасит горение, лёгкий AoE, мокро не ложится
     if (m.dotElem === 'fire' && this.time < m.dotUntil) {
       m.dotUntil = 0; m.dotElem = ''; m.dotPct = 0;
@@ -740,17 +750,37 @@ export class Sim {
   }
 
   /**
-   * Попытка заморозить. Возвращает true, если стан наложен; false — если
-   * действует иммунитет (тогда вызывающий кладёт обычный статус, не стан).
-   * После разморозки монстр невосприимчив ещё freezeImmuneSec — защита от
-   * пермафриза: иначе Ливень+Мороз держали бы цель в вечном стане.
+   * Попытка застанить (заморозка или окаменение Медузы). Возвращает true, если
+   * стан наложен; false — если действует иммунитет. После стана монстр
+   * невосприимчив ещё freezeImmuneSec — защита от перма-стана (иначе Ливень+Мороз
+   * или пачка Медуз держали бы цель в вечном стане).
    */
-  private tryFreeze(m: Monster): boolean {
+  private tryStun(m: Monster, durSec: number): boolean {
     if (this.time < m.freezeImmuneUntil) return false; // иммунитет активен
-    m.stunUntil = Math.max(m.stunUntil, this.time + this.cfg.statusFx.freezeStunSec);
-    m.wetUntil = 0; // мокро израсходовано
+    m.stunUntil = Math.max(m.stunUntil, this.time + durSec);
     m.freezeImmuneUntil = m.stunUntil + this.cfg.statusFx.freezeImmuneSec;
     return true;
+  }
+
+  /** Разлом (дробитель): снимает броню — цель уязвима и медленнее. */
+  private applySunder(m: Monster, dur: number): void {
+    m.sunderUntil = this.time + dur;
+  }
+
+  /** Арканист: детонирует все статусы цели разом — урон растёт от их числа. */
+  private detonateAll(m: Monster, u: Unit, t: UnitTypeCfg): void {
+    let count = 0;
+    if (this.time < m.dotUntil && m.dotElem !== '') count++;
+    if (this.time < m.slowUntil) count++;
+    if (this.time < m.wetUntil) count++;
+    if (this.time < m.sunderUntil) count++;
+    if (count === 0) return;
+    const fx = this.cfg.statusFx;
+    const dmg = this.effDamage(u, t) * fx.arcaneMult * count * count; // ×(число статусов)²
+    this.aoeAround(m, fx.arcaneRadiusTiles, dmg, 'arcane');
+    // статусы потрачены
+    m.dotUntil = 0; m.dotElem = ''; m.dotPct = 0;
+    m.slowUntil = 0; m.wetUntil = 0; m.sunderUntil = 0;
   }
 
   /** Наложение DoT (яд/горение) с гибридным уроном и детонацией при встрече элементов. */
@@ -843,9 +873,10 @@ export class Sim {
 
   private hit(m: Monster, dmg: number, typeId: string): void {
     if (m.hp <= 0) return; // уже мёртв (умер в этом же тике) — не бить и не считать
-    // синергия контроля: замедлённые цели получают больше урона от ВСЕХ источников —
-    // это делает Мороз/слоу-зону усилителем состава, а не слабой отдельной пушкой
+    // синергия контроля: замедлённые цели получают больше урона от ВСЕХ источников
     if (this.time < m.slowUntil) dmg *= this.cfg.slowVulnMult;
+    // разлом (дробитель): снята броня — цель получает ещё больше урона (реакция «Пробой»)
+    if (this.time < m.sunderUntil) dmg *= this.cfg.statusFx.sunderMult;
     const applied = Math.min(m.hp, dmg);
     if (dmg > m.hp) {
       this.stats.overkillByType[typeId] = (this.stats.overkillByType[typeId] ?? 0) + (dmg - m.hp);
