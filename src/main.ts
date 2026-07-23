@@ -6,7 +6,7 @@ import { Controls } from './ui/controls';
 import { Hud } from './ui/hud';
 import { Menu, type GameMode } from './ui/menu';
 import { shapeSvg } from './render/shapes';
-import { loadAdmin, loadMeta } from './ui/storage';
+import { loadAdmin, loadMetaAsync } from './ui/storage';
 import type { BalanceCfg, WavesCfg } from './core/types';
 
 const SIM_DT = 0.05; // фиксированный тик 50 мс — детерминизм по сиду
@@ -60,7 +60,7 @@ function dailySeed(): number {
 async function boot(): Promise<void> {
   const url = new URL(location.href);
   const balance = await loadJson<BalanceCfg>('./config/balance.json');
-  const meta = loadMeta(balance);
+  const meta = await loadMetaAsync(balance); // с сервера, если вошёл; иначе локально
   // дебаг-бар с читами виден только в админ-режиме (в т.ч. при заходе по прямой ссылке)
   document.body.classList.toggle('admin', loadAdmin());
 

@@ -86,6 +86,11 @@
     .menu-row button { flex: 1; }
     .crit-summary { text-align: center; color: #ffd45e; font-size: 15px; }
     .small { font-size: 12px; line-height: 1.4; }
+    #authForm { display: flex; flex-direction: column; gap: 10px; }
+    .menu-card input { min-height: 48px; padding: 0 14px; font-size: 16px;
+      background: #1b1d22; color: #e8e8e8; border: 1px solid #555; border-radius: 8px; }
+    .menu-card input:focus { outline: 2px solid #4a86c8; border-color: #4a86c8; }
+    .auth-err { color: #ff6b6b; font-size: 13px; min-height: 16px; text-align: center; }
     #metaList { display: flex; flex-direction: column; gap: 6px; }
     .meta-row { display: flex; align-items: center; gap: 10px; background: #24262c;
       border: 1px solid #3a3f4a; border-radius: 8px; padding: 8px 10px; }
@@ -121,9 +126,26 @@
       <button id="playDaily">📅 Испытание дня</button>
       <button id="playBoss">💀 Boss Rush</button>
       <button id="openMeta">⚙ Прокачка башен</button>
+      <button id="openAuth">👤 Аккаунт</button>
       <button id="menuHelp" class="ghost">? Правила</button>
       <button id="adminToggle" class="ghost">🛠 Админ-режим: выкл</button>
       <div class="version" id="verLbl"></div>
+    </div>
+  </div>
+
+  <div id="authScreen" class="screen">
+    <div class="menu-card">
+      <h2 id="authTitle">Аккаунт</h2>
+      <p class="muted small" id="authStatus"></p>
+      <div id="authForm">
+        <input id="authLogin" placeholder="Логин (≥3 символов)" autocomplete="username" maxlength="32" />
+        <input id="authPass" type="password" placeholder="Пароль (≥4 символов)" autocomplete="current-password" />
+        <div class="auth-err" id="authErr"></div>
+        <button id="authLoginBtn" class="primary">Войти</button>
+        <button id="authRegBtn">Регистрация</button>
+      </div>
+      <button id="authLogoutBtn" style="display:none">Выйти из аккаунта</button>
+      <button id="authBack" class="ghost">← Назад</button>
     </div>
   </div>
 

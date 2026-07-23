@@ -1,0 +1,7 @@
+
+> td-proto@0.2.0 server
+> node --experimental-sqlite --import tsx server/index.ts
+
+(node:14052) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[td-server] http://localhost:3000
