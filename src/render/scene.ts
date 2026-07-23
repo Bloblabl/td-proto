@@ -227,6 +227,7 @@ export class GameScene extends Phaser.Scene {
       if (now < m.stunUntil) { strokeColor = 0xbae6fd; strokeW = 4; }        // стан — ярко-голубой
       else if (now < m.slowUntil) { strokeColor = 0x67e8f9; strokeW = 3; }   // мороз/уязвимость
       else if (now < m.wetUntil) { strokeColor = 0x38bdf8; strokeW = 3; }    // мокро
+      else if (now < m.sunderUntil) { strokeColor = 0xd97706; strokeW = 3; } // разлом — охра
       else if (m.dotDps > 0 && now < m.dotUntil) {
         strokeColor = m.dotElem === 'fire' ? 0xfb923c : 0x22c55e;            // горение / яд
         strokeW = 3;

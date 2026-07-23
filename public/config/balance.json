@@ -19,7 +19,11 @@
     "freezeStunSec": 1.5,
     "freezeImmuneSec": 6.0,
     "conductMult": 1.5,
-    "steamRadiusTiles": 1.2
+    "steamRadiusTiles": 1.2,
+    "sunderMult": 1.4,
+    "sunderSlowPct": 0.25,
+    "arcaneMult": 0.6,
+    "arcaneRadiusTiles": 1.5
   },
   "boostStartCharge": 0.5,
   "selectorStart": 1,
@@ -71,7 +75,10 @@
     { "id": "poison",  "name": "Яд",        "color": "#22c55e", "damage": 15,  "period": 1.5, "targeting": "first", "dotDps": 40, "dotDur": 5.0, "dotElem": "poison", "dotPctPerLevel": 0.015 },
     { "id": "arc",     "name": "Разряд",    "color": "#e2e8f0", "damage": 60,  "period": 2.5, "targeting": "first", "chainCount": 3, "chainRadius": 2.0, "chainFalloff": 0.7 },
     { "id": "pyro",    "name": "Пиромант",  "color": "#fb923c", "damage": 20,  "period": 1.6, "targeting": "first", "dotDps": 35, "dotDur": 4.0, "dotElem": "fire", "dotPctPerLevel": 0.015 },
-    { "id": "rain",    "name": "Ливень",    "color": "#38bdf8", "damage": 8,   "period": 1.4, "targeting": "first", "aoeRadius": 1.5, "wetDur": 4.0 }
+    { "id": "rain",    "name": "Ливень",    "color": "#38bdf8", "damage": 8,   "period": 1.4, "targeting": "first", "aoeRadius": 1.5, "wetDur": 4.0 },
+    { "id": "crush",   "name": "Дробитель", "color": "#a16207", "damage": 90,  "period": 2.5, "targeting": "maxhp", "sunderDur": 4.0 },
+    { "id": "arcane",  "name": "Арканист",  "color": "#d946ef", "damage": 30,  "period": 2.0, "targeting": "first", "detonateAll": true },
+    { "id": "medusa",  "name": "Медуза",    "color": "#a8a29e", "damage": 15,  "period": 2.5, "targeting": "first", "petrifyChance": 0.25, "petrifyDur": 1.0 }
   ],
   "monsterTypes": [
     { "id": "normal", "name": "Обычный", "hp": 100,  "speed": 1.0, "reward": 10,  "radius": 10, "color": "#e05252" },
