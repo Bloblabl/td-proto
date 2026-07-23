@@ -44,15 +44,21 @@
     "every": 5,
     "choices": 3,
     "typeDamagePct": 0.15,
+    "rarityWeights": { "common": 1.0, "rare": 0.5, "legendary": 0.18 },
     "pool": [
-      { "kind": "typeDamage" },
-      { "kind": "selector", "n": 1 },
-      { "kind": "obstacle", "ob": "barricade", "n": 1 },
-      { "kind": "obstacle", "ob": "spikes", "n": 2 },
-      { "kind": "obstacle", "ob": "slowzone", "n": 1 },
-      { "kind": "boostCooldown", "pct": 0.15 },
-      { "kind": "manaKill", "pct": 0.2 },
-      { "kind": "rank2Summon", "n": 3 }
+      { "kind": "typeDamage", "rarity": "common" },
+      { "kind": "selector", "n": 1, "rarity": "common" },
+      { "kind": "obstacle", "ob": "barricade", "n": 1, "rarity": "common" },
+      { "kind": "obstacle", "ob": "spikes", "n": 2, "rarity": "common" },
+      { "kind": "obstacle", "ob": "slowzone", "n": 1, "rarity": "common" },
+      { "kind": "manaKill", "pct": 0.2, "rarity": "common" },
+      { "kind": "typeDamage", "pct": 0.35, "rarity": "rare" },
+      { "kind": "boostCooldown", "pct": 0.15, "rarity": "rare" },
+      { "kind": "rank2Summon", "n": 3, "rarity": "rare" },
+      { "kind": "selector", "n": 2, "rarity": "rare" },
+      { "kind": "allTypeLevels", "rarity": "legendary" },
+      { "kind": "boostReset", "pct": 0.2, "rarity": "legendary" },
+      { "kind": "rank3Summon", "n": 2, "rarity": "legendary" }
     ]
   },
   "obstacles": {
@@ -78,7 +84,13 @@
     { "id": "rain",    "name": "Ливень",    "color": "#38bdf8", "damage": 8,   "period": 1.4, "targeting": "first", "aoeRadius": 1.5, "wetDur": 4.0 },
     { "id": "crush",   "name": "Дробитель", "color": "#a16207", "damage": 90,  "period": 2.5, "targeting": "maxhp", "sunderDur": 4.0 },
     { "id": "arcane",  "name": "Арканист",  "color": "#d946ef", "damage": 30,  "period": 2.0, "targeting": "first", "detonateAll": true },
-    { "id": "medusa",  "name": "Медуза",    "color": "#a8a29e", "damage": 15,  "period": 2.5, "targeting": "first", "petrifyChance": 0.25, "petrifyDur": 1.0 }
+    { "id": "medusa",  "name": "Медуза",    "color": "#a8a29e", "damage": 15,  "period": 2.5, "targeting": "first", "petrifyChance": 0.25, "petrifyDur": 1.0 },
+    { "id": "whirl",   "name": "Вихрь",     "color": "#14b8a6", "damage": 25,  "period": 1.0, "targeting": "first", "rampStep": 0.12, "rampMax": 12 },
+    { "id": "cannon",  "name": "Пушка",     "color": "#64748b", "damage": 120, "period": 3.0, "targeting": "first", "aoeRadius": 2.0 },
+    { "id": "growth",  "name": "Ростовик",  "color": "#65a30d", "damage": 10,  "period": 1.5, "targeting": "first", "growthPerWave": 0.06 },
+    { "id": "exec",    "name": "Палач",     "color": "#dc2626", "damage": 60,  "period": 2.0, "targeting": "first", "executeThreshold": 0.15 },
+    { "id": "vamp",    "name": "Вампир",    "color": "#9f1239", "damage": 40,  "period": 1.5, "targeting": "first", "manaLeech": 0.25 },
+    { "id": "mimic",   "name": "Мим",       "color": "#ec4899", "damage": 20,  "period": 1.5, "targeting": "first", "mimic": true }
   ],
   "monsterTypes": [
     { "id": "normal", "name": "Обычный", "hp": 100,  "speed": 1.0, "reward": 10,  "radius": 10, "color": "#e05252" },

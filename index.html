@@ -50,7 +50,10 @@
     #overlay table { width: 100%; border-collapse: collapse; margin: 8px 0; }
     #overlay td { padding: 2px 4px; border-bottom: 1px solid #333; }
     #draftCards { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-    #draftCards button { min-height: 56px; font-size: 15px; border-width: 2px; border-color: #f97316; }
+    #draftCards button { min-height: 56px; font-size: 15px; border-width: 2px; border-color: #6b7280; }
+    #draftCards button.rarity-rare { border-color: #38bdf8; color: #bae6fd; }
+    #draftCards button.rarity-legendary { border-color: #fbbf24; color: #fde68a;
+      background: #3a2f1a; }
     #deckTypes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     #deckTypes button { flex: 1 1 30%; min-height: 52px; border-width: 2px; font-size: 13px; }
     #deckTypes button.picked { background: #2e6b3a; }
@@ -239,6 +242,11 @@
       <b>Дробитель</b> ломает броню (цель уязвима и медленнее). <b>Арканист</b> детонирует
       все статусы цели разом — чем больше статусов, тем сильнее взрыв.
       <b>Медуза</b> с шансом обращает монстра в камень (стан).</p>
+      <p><b>Архетипы:</b> <b>Вихрь</b> разгоняется по одной цели (смена цели сбрасывает);
+      <b>Пушка</b> — тяжёлый AoE; <b>Ростовик</b> слаб в начале, но растёт с каждой волной;
+      <b>Палач</b> мгновенно казнит цели ниже 15% HP; <b>Вампир</b> возвращает часть урона маной;
+      <b>Мим</b> сливается с юнитом любого типа того же ранга (результат — тип напарника).
+      Карточки драфта имеют редкость: обычные, ◆ редкие, ★ легендарные.</p>
       <p><b>Заграждения</b> (расходники): нажмите кнопку и тапните тайл трека.
       Баррикада блокирует монстров, пока её не разобьют; Шипы бьют всех на тайле 10 секунд;
       Слоу-зона замедляет на 3 тайлах (босс — слабее). Комбо: слоу-зона собирает толпу под Залп.</p>
