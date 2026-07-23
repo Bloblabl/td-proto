@@ -3,4 +3,5 @@ dist/
 *.local
 .claude/settings.local.json
 server/data/
+server.log
 .env
