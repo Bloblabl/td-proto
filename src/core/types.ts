@@ -22,6 +22,12 @@ export interface UnitTypeCfg {
   detonateAll?: boolean; // арканист: детонирует все статусы цели
   petrifyChance?: number; // медуза: шанс окаменения (стан) при атаке, 0..1
   petrifyDur?: number;   // медуза: длительность окаменения, сек
+  rampStep?: number;     // вихрь: +скорость атаки за удар по одной цели
+  rampMax?: number;      // вихрь: макс. стаков разгона
+  growthPerWave?: number; // ростовик: +% урона за каждую пройденную волну
+  manaLeech?: number;    // вампир: доля нанесённого урона → мана
+  executeThreshold?: number; // палач: добивает цель ниже этой доли max HP
+  mimic?: boolean;       // мим: сливается с любым типом того же ранга (джокер)
 }
 
 /** Элемент DoT — по канону Magicka огонь вытесняет яд, встреча даёт детонацию. */
@@ -91,24 +97,33 @@ export interface MetaState {
   levels: Record<string, number>;
 }
 
-export type DraftPoolEntry =
-  | { kind: 'typeDamage' }                       // раскрывается в карточку на каждый тип колоды
+export type DraftRarity = 'common' | 'rare' | 'legendary';
+
+export type DraftPoolEntry = { rarity: DraftRarity } & (
+  | { kind: 'typeDamage'; pct?: number }         // раскрывается в карточку на каждый тип колоды
   | { kind: 'selector'; n: number }
   | { kind: 'obstacle'; ob: ObstacleKind; n: number }
   | { kind: 'boostCooldown'; pct: number }
   | { kind: 'manaKill'; pct: number }
-  | { kind: 'rank2Summon'; n: number };
+  | { kind: 'rank2Summon'; n: number }
+  | { kind: 'allTypeLevels' }                    // legendary: +1 in-match уровень всем типам колоды
+  | { kind: 'boostReset'; pct: number }          // legendary: зарядить бусты + −pct кулдауна навсегда
+  | { kind: 'rank3Summon'; n: number }           // legendary: следующие n призывов — ранг 3
+);
 
 export interface DraftCfg {
   every: number;         // драфт после волн N, 2N, 3N…
   choices: number;       // карточек на выбор
-  typeDamagePct: number; // бонус карточки typeDamage
+  typeDamagePct: number; // бонус карточки typeDamage по умолчанию
+  /** Вес выбора карточки по редкости (реже — меньше вес) */
+  rarityWeights: Record<DraftRarity, number>;
   pool: DraftPoolEntry[];
 }
 
 /** Runtime-карточка драфта (пул раскрыт по колоде). */
 export interface DraftCard {
   title: string;
+  rarity: DraftRarity;
   entry: DraftPoolEntry;
   typeId?: string; // для typeDamage
 }
@@ -205,6 +220,8 @@ export interface Unit {
   rank: number;
   cell: number; // индекс клетки поля
   cooldown: number;
+  rampStacks?: number;   // вихрь: текущий разгон
+  rampTargetId?: number; // вихрь: по какой цели идёт разгон (смена → сброс)
 }
 
 export interface Obstacle {

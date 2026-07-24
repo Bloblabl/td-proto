@@ -45,6 +45,7 @@ export class Sim {
   private boostCdMult = 1;
   private manaKillBonus = 0;
   private rank2Summons = 0;
+  private rank3Summons = 0;
 
   /** Инвентарь заграждений (расходники) */
   inventory: Record<ObstacleKind, number>;
@@ -146,10 +147,11 @@ export class Sim {
     for (let i = 0; i < this.gridCells; i++) if (!occupied.has(i)) free.push(i);
     if (free.length === 0) return false;
     const cell = this.rng.pick(free);
-    const willBeRank2 = this.rank2Summons > 0;
-    const rank = willBeRank2 ? 2 : 1;
+    // приоритет у ранга 3 (legendary-карточка), затем ранг 2, иначе 1
+    const rank = this.rank3Summons > 0 ? 3 : this.rank2Summons > 0 ? 2 : 1;
     const type = this.pickSummonType(free.length, rank);
-    if (willBeRank2) this.rank2Summons--;
+    if (rank === 3) this.rank3Summons--;
+    else if (rank === 2) this.rank2Summons--;
     this.mana -= cost;
     this.stats.manaSpentSummon += cost;
     this.waveAcc.manaSpentSummon += cost;
@@ -188,11 +190,13 @@ export class Sim {
 
   /**
    * Сливаются два юнита ОДНОГО ТИПА И РАНГА — строгое правило (как в ТЗ).
-   * Оставляет осмысленное решение «мерджить или копить»; от RNG-тупика полного
-   * поля страхует «умный призыв» (см. pickSummonType), а не ослабление мерджа.
+   * Исключение — Мим (mimic): джокер, сливается с любым типом того же ранга,
+   * чинит невезение мерджа. От RNG-тупика также страхует «умный призыв».
    */
   canMerge(a: Unit, b: Unit): boolean {
-    return a.id !== b.id && a.typeId === b.typeId && a.rank === b.rank && a.rank < this.cfg.maxRank;
+    if (a.id === b.id || a.rank !== b.rank || a.rank >= this.cfg.maxRank) return false;
+    if (this.unitType(a.typeId).mimic || this.unitType(b.typeId).mimic) return true;
+    return a.typeId === b.typeId;
   }
 
   /** Есть ли вообще доступный мердж — для предупреждения «ходов нет». */
@@ -212,7 +216,12 @@ export class Sim {
       this.selectorType = null;
       this.stats.selectorsUsed++;
     } else {
-      b.typeId = this.rng.pick(this.deck).id;
+      // Мим-джокер: если ровно один из пары — мим, результат берёт РЕАЛЬНЫЙ тип;
+      // одинаковые типы (или два мима) — случайный из колоды, как обычно
+      const aMim = this.unitType(a.typeId).mimic, bMim = this.unitType(b.typeId).mimic;
+      if (aMim && !bMim) b.typeId = b.typeId;      // b реальный — сохраняем
+      else if (!aMim && bMim) b.typeId = a.typeId; // b был мим — берёт тип a
+      else b.typeId = this.rng.pick(this.deck).id;
     }
     b.rank = a.rank + 1;
     b.cooldown = this.effPeriod(b) * 0.5;
@@ -239,7 +248,7 @@ export class Sim {
     const e = card.entry;
     if (e.kind === 'typeDamage' && card.typeId) {
       this.typeDamageBonus[card.typeId] =
-        (this.typeDamageBonus[card.typeId] ?? 0) + this.cfg.draft.typeDamagePct;
+        (this.typeDamageBonus[card.typeId] ?? 0) + (e.pct ?? this.cfg.draft.typeDamagePct);
     } else if (e.kind === 'selector') {
       this.selectors += e.n;
     } else if (e.kind === 'obstacle') {
@@ -250,6 +259,15 @@ export class Sim {
       this.manaKillBonus += e.pct;
     } else if (e.kind === 'rank2Summon') {
       this.rank2Summons += e.n;
+    } else if (e.kind === 'allTypeLevels') {
+      // legendary: +1 in-match уровень всем типам колоды (бесплатный апгрейд)
+      for (const t of this.deck) this.typeLevels[t.id] = (this.typeLevels[t.id] ?? 1) + 1;
+    } else if (e.kind === 'boostReset') {
+      // legendary: мгновенно зарядить все бусты + постоянное ускорение кулдаунов
+      for (const b of this.boosts) b.readyAt = this.time;
+      this.boostCdMult *= 1 - e.pct;
+    } else if (e.kind === 'rank3Summon') {
+      this.rank3Summons += e.n;
     }
     this.stats.draftPicks.push({ wave: this.wave, title: card.title });
     this.draftPending = null;
@@ -258,35 +276,52 @@ export class Sim {
     return true;
   }
 
-  /** Пул раскрывается по колоде: карточка «+урон типу» на каждый из 5 типов + 7 общих = 12. */
+  /** Пул раскрывается по колоде; выбор карточек взвешен редкостью (легендарки редки). */
   private generateDraft(): DraftCard[] {
     const cards: DraftCard[] = [];
-    const pct = Math.round(this.cfg.draft.typeDamagePct * 100);
     for (const e of this.cfg.draft.pool) {
+      const r = e.rarity;
       if (e.kind === 'typeDamage') {
+        const pct = Math.round((e.pct ?? this.cfg.draft.typeDamagePct) * 100);
         for (const t of this.deck) {
           const word = t.targeting === 'none' ? 'эффекта' : 'урона';
-          cards.push({ title: `+${pct}% ${word}: ${t.name}`, entry: e, typeId: t.id });
+          cards.push({ title: `+${pct}% ${word}: ${t.name}`, rarity: r, entry: e, typeId: t.id });
         }
       } else if (e.kind === 'selector') {
-        cards.push({ title: `+${e.n} Селектор`, entry: e });
+        cards.push({ title: `+${e.n} Селектор`, rarity: r, entry: e });
       } else if (e.kind === 'obstacle') {
         const nm = e.ob === 'barricade' ? 'Баррикада' : e.ob === 'spikes' ? 'Шипы' : 'Слоу-зона';
-        cards.push({ title: `+${e.n} ${nm}`, entry: e });
+        cards.push({ title: `+${e.n} ${nm}`, rarity: r, entry: e });
       } else if (e.kind === 'boostCooldown') {
-        cards.push({ title: `−${Math.round(e.pct * 100)}% кулдауна бустов`, entry: e });
+        cards.push({ title: `−${Math.round(e.pct * 100)}% кулдауна бустов`, rarity: r, entry: e });
       } else if (e.kind === 'manaKill') {
-        cards.push({ title: `+${Math.round(e.pct * 100)}% маны с убийств`, entry: e });
-      } else {
-        cards.push({ title: `Следующие ${e.n} призыва — ранг 2`, entry: e });
+        cards.push({ title: `+${Math.round(e.pct * 100)}% маны с убийств`, rarity: r, entry: e });
+      } else if (e.kind === 'rank2Summon') {
+        cards.push({ title: `Следующие ${e.n} призыва — ранг 2`, rarity: r, entry: e });
+      } else if (e.kind === 'allTypeLevels') {
+        cards.push({ title: '+1 уровень ВСЕМ типам колоды', rarity: r, entry: e });
+      } else if (e.kind === 'boostReset') {
+        cards.push({ title: `Зарядить все бусты, −${Math.round(e.pct * 100)}% кулдауна`, rarity: r, entry: e });
+      } else if (e.kind === 'rank3Summon') {
+        cards.push({ title: `Следующие ${e.n} призыва — ранг 3`, rarity: r, entry: e });
       }
     }
-    // выбор N разных карточек (частичный Фишер–Йетс на сиде забега)
-    for (let i = 0; i < Math.min(this.cfg.draft.choices, cards.length); i++) {
-      const j = i + this.rng.int(cards.length - i);
-      [cards[i], cards[j]] = [cards[j], cards[i]];
+    // взвешенный выбор без повторов: вес карточки = вес её редкости
+    const weights = this.cfg.draft.rarityWeights;
+    const picked: DraftCard[] = [];
+    const rest = [...cards];
+    while (picked.length < this.cfg.draft.choices && rest.length > 0) {
+      const total = rest.reduce((s, c) => s + weights[c.rarity], 0);
+      let roll = this.rng.next() * total;
+      let idx = 0;
+      for (let i = 0; i < rest.length; i++) {
+        roll -= weights[rest[i].rarity];
+        if (roll <= 0) { idx = i; break; }
+      }
+      picked.push(rest[idx]);
+      rest.splice(idx, 1);
     }
-    return cards.slice(0, this.cfg.draft.choices);
+    return picked;
   }
 
   // ---------- заграждения ----------
@@ -583,8 +618,20 @@ export class Sim {
         this.stats.critHits++;
         this.stats.critBonusDamage += dmg - baseDmg; // номинальный бонус, без учёта overkill
       }
+      // вихрь: разгон скорости атаки по одной цели, смена цели сбрасывает стаки
+      if (t.rampStep) {
+        if (u.rampTargetId === target.id) {
+          u.rampStacks = Math.min((u.rampStacks ?? 0) + 1, t.rampMax ?? 99);
+        } else {
+          u.rampStacks = 0;
+          u.rampTargetId = target.id;
+        }
+      }
       const pos = this.monsterPx(target);
-      if (t.aoeRadius) {
+      if (t.executeThreshold && target.hp <= t.executeThreshold * target.maxHp) {
+        // палач: цель ниже порога — казнь вместо обычного удара
+        this.hit(target, target.hp, t.id);
+      } else if (t.aoeRadius) {
         const rPx = t.aoeRadius * TILE;
         for (const m of this.monsters) {
           const p = this.monsterPx(m);
@@ -594,6 +641,8 @@ export class Sim {
       } else {
         this.hit(target, dmg, t.id);
       }
+      // вампир: часть нанесённого урона возвращается маной
+      if (t.manaLeech) this.addMana(dmg * t.manaLeech);
       // наложение статусов на основную цель (мороз, ливень, яд/горение, разлом, окаменение)
       if (t.slowPct && t.slowDur) this.applySlow(target, t.slowPct, t.slowDur);
       if (t.wetDur) this.applyWet(target, t.wetDur);
@@ -692,22 +741,25 @@ export class Sim {
 
   // ---------- внутреннее ----------
 
-  /** Эффективный период: ранг (×1.6 скорости за ранг) + Перегрев для атакующих юнитов. */
+  /** Эффективный период: ранг + Перегрев + разгон Вихря (rampStacks по одной цели). */
   private effPeriod(u: Unit): number {
     const t = this.unitType(u.typeId);
     let period = t.period / Math.pow(this.cfg.rankAtkSpeedMult, u.rank - 1);
+    if (t.rampStep) period /= 1 + (u.rampStacks ?? 0) * t.rampStep;
     if (t.targeting !== 'none' && this.time < this.overdriveUntil) {
       period /= this.boostCfg('overdrive').atkSpeedMult ?? 1;
     }
     return period;
   }
 
-  /** Множитель урона/эффекта: in-match уровень типа + драфт + мета-уровень башни. */
+  /** Множитель урона/эффекта: уровень типа + драфт + мета + рост Ростовика по волнам. */
   private effMult(u: Unit): number {
+    const t = this.unitType(u.typeId);
     const level = this.typeLevels[u.typeId] ?? 1;
     return (1 + this.cfg.typeUpgrade.multPerLevel * (level - 1))
       * (1 + (this.typeDamageBonus[u.typeId] ?? 0))
-      * (1 + towerDamageBonus(this.cfg, this.meta, u.typeId));
+      * (1 + towerDamageBonus(this.cfg, this.meta, u.typeId))
+      * (1 + (t.growthPerWave ?? 0) * this.wave);
   }
 
   private effDamage(u: Unit, t: UnitTypeCfg): number {

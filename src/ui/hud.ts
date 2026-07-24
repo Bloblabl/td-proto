@@ -213,7 +213,9 @@ export class Hud {
 			box.innerHTML = '';
 			s.draftPending.forEach((card, i) => {
 				const b = document.createElement('button');
-				b.textContent = card.title;
+				b.className = `rarity-${card.rarity}`;
+				const tag = card.rarity === 'legendary' ? '★ ' : card.rarity === 'rare' ? '◆ ' : '';
+				b.textContent = tag + card.title;
 				b.onclick = () => {
 					s.pickDraft(i);
 					el('draftOverlay').classList.remove('open');
