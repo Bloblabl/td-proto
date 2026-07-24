@@ -12,11 +12,18 @@ import { createUser, saveMeta, userById, userByLogin } from './db';
  * только для локальной разработки.
  */
 const PORT = Number(process.env.PORT ?? 3000);
+// В проде за nginx слушаем только localhost (HOST=127.0.0.1). По умолчанию — все интерфейсы (dev).
+const HOST = process.env.HOST ?? '0.0.0.0';
 const JWT_SECRET = process.env.JWT_SECRET ?? 'td-proto-dev-secret-change-me';
 const TOKEN_TTL = '30d';
 
+// Разрешённые origin'ы (CORS). ALLOWED_ORIGIN — список через запятую
+// (напр. "https://bloblabl.github.io"). Пусто → разрешаем всё (локальная разработка).
+const ALLOWED = (process.env.ALLOWED_ORIGIN ?? '')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+
 const app = express();
-app.use(cors());
+app.use(cors(ALLOWED.length === 0 ? undefined : { origin: ALLOWED }));
 app.use(express.json());
 
 function makeToken(id: number, login: string): string {
@@ -86,4 +93,8 @@ app.put('/api/progress', auth, (req: Request, res: Response) => {
 
 app.get('/api/health', (_req: Request, res: Response) => res.json({ ok: true }));
 
-app.listen(PORT, () => console.log(`[td-server] http://localhost:${PORT}`));
+if (JWT_SECRET === 'td-proto-dev-secret-change-me') {
+  console.warn('[td-server] ВНИМАНИЕ: используется дефолтный JWT_SECRET. На проде задайте свой через env.');
+}
+
+app.listen(PORT, HOST, () => console.log(`[td-server] слушает ${HOST}:${PORT} (origins: ${ALLOWED.join(', ') || '*'})`));
