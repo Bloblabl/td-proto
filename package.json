@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "smoke": "tsx smoke.ts",
     "balance": "tsx balance.ts",
-    "server": "node --experimental-sqlite --import tsx server/index.ts"
+    "server": "node --experimental-sqlite --import tsx server/index.ts",
+    "start": "node --experimental-sqlite --import tsx server/index.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

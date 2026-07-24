@@ -7,6 +7,11 @@
 const TOKEN_KEY = 'td-proto-token';
 const LOGIN_KEY = 'td-proto-login';
 
+// База API. Пусто (dev) → относительный /api через Vite-proxy на localhost:3000.
+// На проде задаётся VITE_API_BASE (абсолютный HTTPS-URL VPS) на этапе сборки.
+// Хвостовой слэш срезаем, чтобы не получить `//api`.
+const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+
 export function currentLogin(): string | null {
   return localStorage.getItem(LOGIN_KEY);
 }
@@ -26,7 +31,7 @@ async function api(path: string, method: string, body?: unknown): Promise<Record
   if (token) headers.Authorization = `Bearer ${token}`;
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${API_BASE}/api${path}`, {
       method, headers, body: body === undefined ? undefined : JSON.stringify(body)
     });
   } catch {
